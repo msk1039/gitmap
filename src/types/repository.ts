@@ -1,3 +1,16 @@
+export interface FileEntry {
+  name: string;
+  path: string;
+  is_directory: boolean;
+  size?: number; // Size in bytes, undefined for directories
+  modified?: string;
+}
+
+export interface DirectoryListing {
+  path: string;
+  entries: FileEntry[];
+}
+
 export interface GitRepository {
   name: string;
   path: string;

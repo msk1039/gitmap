@@ -2,7 +2,7 @@ mod repo_types;
 mod git_scanner;
 mod data_store;
 
-use repo_types::GitRepository;
+use repo_types::{GitRepository, FileEntry, DirectoryListing};
 use git_scanner::GitScanner;
 use data_store::CacheInfo;
 use tauri::{command, Window, State};
@@ -117,6 +117,94 @@ async fn refresh_repository(repo_path: String, state: State<'_, AppState>) -> Re
     Ok(updated_repo)
 }
 
+#[command]
+async fn list_directory_contents(repo_path: String) -> Result<DirectoryListing, String> {
+    use std::fs;
+    use std::path::Path;
+    use chrono::{DateTime, Utc};
+    
+    let path = Path::new(&repo_path);
+    
+    if !path.exists() {
+        return Err(format!("Path does not exist: {}", repo_path));
+    }
+    
+    if !path.is_dir() {
+        return Err(format!("Path is not a directory: {}", repo_path));
+    }
+    
+    let mut entries = Vec::new();
+    
+    match fs::read_dir(path) {
+        Ok(dir_entries) => {
+            for entry in dir_entries {
+                match entry {
+                    Ok(dir_entry) => {
+                        let entry_path = dir_entry.path();
+                        let name = entry_path.file_name()
+                            .and_then(|n| n.to_str())
+                            .unwrap_or("Unknown")
+                            .to_string();
+                        
+                        // Skip hidden files and directories starting with .
+                        if name.starts_with('.') {
+                            continue;
+                        }
+                        
+                        let is_directory = entry_path.is_dir();
+                        let size = if is_directory {
+                            None
+                        } else {
+                            dir_entry.metadata().ok().map(|m| m.len())
+                        };
+                        
+                        let modified = dir_entry.metadata()
+                            .and_then(|m| m.modified())
+                            .ok()
+                            .and_then(|time| {
+                                use std::time::UNIX_EPOCH;
+                                time.duration_since(UNIX_EPOCH)
+                                    .ok()
+                                    .map(|d| DateTime::<Utc>::from_timestamp(d.as_secs() as i64, 0))
+                                    .flatten()
+                            });
+                        
+                        entries.push(FileEntry {
+                            name,
+                            path: entry_path.to_string_lossy().to_string(),
+                            is_directory,
+                            size,
+                            modified,
+                        });
+                    }
+                    Err(e) => {
+                        // Skip entries we can't read
+                        eprintln!("Failed to read directory entry: {}", e);
+                        continue;
+                    }
+                }
+            }
+        }
+        Err(e) => {
+            return Err(format!("Failed to read directory: {}", e));
+        }
+    }
+    
+    // Sort entries: directories first, then files, alphabetically
+    entries.sort_by(|a, b| {
+        match (a.is_directory, b.is_directory) {
+            (true, false) => std::cmp::Ordering::Less,
+            (false, true) => std::cmp::Ordering::Greater,
+            _ => a.name.to_lowercase().cmp(&b.name.to_lowercase()),
+        }
+    });
+    
+    Ok(DirectoryListing {
+        path: repo_path,
+        entries,
+    })
+}
+
 // Keep the existing greet command for compatibility
 #[command]
 fn greet(name: &str) -> String {
@@ -143,7 +231,8 @@ pub fn run() {
                     clear_cache,
                     cleanup_invalid_repositories,
                     open_in_vscode,
-                    refresh_repository
+                    refresh_repository,
+                    list_directory_contents
                 ])
                 .run(tauri::generate_context!())
                 .expect("error while running tauri application");

@@ -24,3 +24,18 @@ pub struct ScanProgress {
     pub repos_found: u32,
     pub completed: bool,
 }
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct FileEntry {
+    pub name: String,
+    pub path: String,
+    pub is_directory: bool,
+    pub size: Option<u64>, // Size in bytes, None for directories
+    pub modified: Option<DateTime<Utc>>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct DirectoryListing {
+    pub path: String,
+    pub entries: Vec<FileEntry>,
+}
