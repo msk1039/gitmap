@@ -1,0 +1,161 @@
+mod repo_types;
+mod git_scanner;
+mod data_store;
+
+use repo_types::GitRepository;
+use git_scanner::GitScanner;
+use data_store::CacheInfo;
+use tauri::{command, Window, State};
+use std::sync::Mutex;
+
+struct AppState {
+    scanner: Mutex<GitScanner>,
+}
+
+#[command]
+async fn scan_repositories(window: Window, state: State<'_, AppState>) -> Result<Vec<GitRepository>, String> {
+    // Create a new scanner for this operation
+    let mut temp_scanner = GitScanner::new()?;
+    let repos = temp_scanner.scan_disk(&window).await?;
+    
+    // Update the state with the results
+    {
+        let mut scanner_guard = state.scanner.lock().map_err(|e| format!("Failed to lock scanner state: {}", e))?;
+        scanner_guard.repos = repos.clone();
+    }
+    
+    Ok(repos)
+}
+
+#[command]
+async fn scan_repositories_with_cache(
+    window: Window, 
+    state: State<'_, AppState>,
+    force_rescan: bool
+) -> Result<Vec<GitRepository>, String> {
+    // Create a new scanner for this operation
+    let mut temp_scanner = GitScanner::new()?;
+    let repos = temp_scanner.scan_disk_with_cache(&window, force_rescan).await?;
+    
+    // Update the state with the results
+    {
+        let mut scanner_guard = state.scanner.lock().map_err(|e| format!("Failed to lock scanner state: {}", e))?;
+        scanner_guard.repos = repos.clone();
+    }
+    
+    Ok(repos)
+}
+
+#[command]
+async fn load_cached_repositories(state: State<'_, AppState>) -> Result<Vec<GitRepository>, String> {
+    let mut temp_scanner = GitScanner::new()?;
+    let repos = temp_scanner.load_cached_repositories().await?;
+    
+    // Update the state with the results
+    {
+        let mut scanner_guard = state.scanner.lock().map_err(|e| format!("Failed to lock scanner state: {}", e))?;
+        scanner_guard.repos = repos.clone();
+    }
+    
+    Ok(repos)
+}
+
+#[command]
+async fn get_cache_info(_state: State<'_, AppState>) -> Result<CacheInfo, String> {
+    let scanner = GitScanner::new()?;
+    scanner.get_cache_info()
+}
+
+#[command]
+async fn clear_cache(state: State<'_, AppState>) -> Result<(), String> {
+    let scanner = GitScanner::new()?;
+    scanner.clear_cache()?;
+    
+    // Clear the state as well
+    {
+        let mut scanner_guard = state.scanner.lock().map_err(|e| format!("Failed to lock scanner state: {}", e))?;
+        scanner_guard.repos.clear();
+    }
+    
+    Ok(())
+}
+
+#[command]
+async fn cleanup_invalid_repositories(_state: State<'_, AppState>) -> Result<usize, String> {
+    let scanner = GitScanner::new()?;
+    scanner.cleanup_invalid_repositories()
+}
+
+#[command]
+async fn open_in_vscode(repo_path: String) -> Result<(), String> {
+    // Open with VS Code using the command line
+    use std::process::Command;
+    
+    let result = Command::new("code")
+        .arg(&repo_path)
+        .spawn();
+    
+    match result {
+        Ok(_) => Ok(()),
+        Err(e) => Err(format!("Failed to open VS Code: {}. Make sure VS Code is installed and the 'code' command is available in your PATH.", e))
+    }
+}
+
+#[command]
+async fn refresh_repository(repo_path: String, state: State<'_, AppState>) -> Result<GitRepository, String> {
+    let mut temp_scanner = GitScanner::new()?;
+    let updated_repo = temp_scanner.refresh_repository(&repo_path)?;
+    
+    // Update the repository in the scanner's list
+    {
+        let mut scanner_guard = state.scanner.lock().map_err(|e| format!("Failed to lock scanner state: {}", e))?;
+        if let Some(index) = scanner_guard.repos.iter().position(|r| r.path == repo_path) {
+            scanner_guard.repos[index] = updated_repo.clone();
+        }
+    }
+    
+    Ok(updated_repo)
+}
+
+// Keep the existing greet command for compatibility
+#[command]
+fn greet(name: &str) -> String {
+    format!("Hello, {}! You've been greeted from Rust!", name)
+}
+
+#[cfg_attr(mobile, tauri::mobile_entry_point)]
+pub fn run() {
+    match GitScanner::new() {
+        Ok(scanner_instance) => {
+            let app_state = AppState {
+                scanner: Mutex::new(scanner_instance),
+            };
+
+            tauri::Builder::default()
+                .plugin(tauri_plugin_opener::init())
+                .manage(app_state)
+                .invoke_handler(tauri::generate_handler![
+                    greet,
+                    scan_repositories,
+                    scan_repositories_with_cache,
+                    load_cached_repositories,
+                    get_cache_info,
+                    clear_cache,
+                    cleanup_invalid_repositories,
+                    open_in_vscode,
+                    refresh_repository
+                ])
+                .run(tauri::generate_context!())
+                .expect("error while running tauri application");
+        }
+        Err(e) => {
+            // Handle error during GitScanner initialization
+            // This is a critical startup error. For now, print to stderr.
+            // In a real app, you might show a dialog or log to a file.
+            eprintln!("Failed to initialize GitScanner: {}", e);
+            // Consider exiting or showing a minimal error UI if possible before Tauri fully starts.
+            // For simplicity here, we'll let it panic if we can't show UI.
+            panic!("Failed to initialize GitScanner: {}", e);
+        }
+    }
+}

@@ -1,0 +1,329 @@
+use crate::repo_types::{GitRepository, ScanProgress};
+use crate::data_store::DataStore;
+use std::path::{Path, PathBuf};
+use walkdir::WalkDir;
+use git2::Repository;
+use std::collections::HashMap;
+use tauri::{Window, Emitter};
+use chrono::{DateTime, Utc};
+use std::fs;
+
+pub struct GitScanner {
+    pub repos: Vec<GitRepository>,
+    data_store: DataStore,
+}
+
+impl GitScanner {
+    pub fn new() -> Result<Self, String> {
+        let data_store = DataStore::new()?;
+        Ok(Self { 
+            repos: Vec::new(),
+            data_store,
+        })
+    }
+
+    pub async fn load_cached_repositories(&mut self) -> Result<Vec<GitRepository>, String> {
+        let cache = self.data_store.load_cache()?;
+        self.repos = cache.repositories.into_values().collect();
+        Ok(self.repos.clone())
+    }
+
+    pub async fn scan_disk_with_cache(&mut self, window: &Window, force_rescan: bool) -> Result<Vec<GitRepository>, String> {
+        if !force_rescan {
+            // Try to load from cache first
+            match self.load_cached_repositories().await {
+                Ok(cached_repos) if !cached_repos.is_empty() => {
+                    // Optional: Validate cached repositories if needed or return them directly
+                    // For now, let's assume if cache is loaded, we can return it.
+                    // This part of the logic might need further refinement based on exact requirements
+                    // (e.g., validating if paths still exist).
+                    // self.repos = cached_repos.clone(); // self.load_cached_repositories already updates self.repos
+                    return Ok(self.repos.clone());
+                }
+                Ok(_) => { /* Cache was empty or load_cached_repositories returned empty */ }
+                Err(e) => {
+                    eprintln!("Failed to load cached repositories, proceeding with full scan: {}", e);
+                    // Fall through to full scan
+                }
+            }
+        }
+
+        // Perform full scan
+        let repositories = self.scan_disk(window).await?;
+        
+        // Save to cache
+        for repo in &repositories {
+            self.data_store.add_repository(repo.clone())?;
+        }
+        
+        Ok(repositories)
+    }
+
+    async fn validate_cached_repositories(&self, cached_repos: Vec<GitRepository>) -> Vec<GitRepository> {
+        let mut valid_repos = Vec::new();
+        
+        for repo in cached_repos {
+            if Path::new(&repo.path).exists() {
+                valid_repos.push(repo);
+            }
+        }
+        
+        valid_repos
+    }
+
+    pub async fn scan_disk(&mut self, window: &Window) -> Result<Vec<GitRepository>, String> {
+        self.repos.clear();
+        let mut repos_found = 0;
+
+        // Start scanning from the user's home directory and common locations
+        let scan_paths = vec![
+            dirs::home_dir().unwrap_or_else(|| PathBuf::from("/")),
+            PathBuf::from("/Users"),
+            PathBuf::from("/opt"),
+            PathBuf::from("/usr/local"),
+        ];
+
+        for root_path in scan_paths {
+            if !root_path.exists() {
+                continue;
+            }
+
+            self.scan_directory(&root_path, window, &mut repos_found).await?;
+        }
+
+        // Send final progress update
+        let _ = window.emit("scan-progress", ScanProgress {
+            current_path: "Scan completed".to_string(),
+            repos_found,
+            completed: true,
+        });
+
+        Ok(self.repos.clone())
+    }
+
+    async fn scan_directory(&mut self, root_path: &Path, window: &Window, repos_found: &mut u32) -> Result<(), String> {
+        let walker = WalkDir::new(root_path)
+            .follow_links(false)
+            .max_depth(8) // Limit depth to avoid infinite recursion
+            .into_iter()
+            .filter_entry(|e| {
+                let path = e.path();
+                // Skip hidden directories except .git, and skip system directories
+                if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
+                    if name.starts_with('.') && name != ".git" {
+                        return false;
+                    }
+                    // Skip common non-repository directories
+                    if matches!(name, "node_modules" | "target" | "build" | "dist" | ".next" | "__pycache__") {
+                        return false;
+                    }
+                }
+                true
+            });
+
+        for entry in walker {
+            match entry {
+                Ok(entry) => {
+                    let path = entry.path();
+                    
+                    // Send progress update every 100 directories
+                    if *repos_found % 100 == 0 {
+                        let _ = window.emit("scan-progress", ScanProgress {
+                            current_path: path.to_string_lossy().to_string(),
+                            repos_found: *repos_found,
+                            completed: false,
+                        });
+                    }
+
+                    // Check if this is a .git directory
+                    if path.file_name() == Some(std::ffi::OsStr::new(".git")) && path.is_dir() {
+                        if let Some(repo_path) = path.parent() {
+                            match self.analyze_repository(repo_path) {
+                                Ok(repo) => {
+                                    self.repos.push(repo);
+                                    *repos_found += 1;
+                                    
+                                    // Send update for found repository
+                                    let _ = window.emit("scan-progress", ScanProgress {
+                                        current_path: repo_path.to_string_lossy().to_string(),
+                                        repos_found: *repos_found,
+                                        completed: false,
+                                    });
+                                }
+                                Err(e) => {
+                                    eprintln!("Failed to analyze repository at {:?}: {}", repo_path, e);
+                                }
+                            }
+                        }
+                    }
+                }
+                Err(e) => {
+                    eprintln!("Error walking directory: {}", e);
+                    continue;
+                }
+            }
+        }
+
+        Ok(())
+    }
+
+    pub fn analyze_repository(&self, repo_path: &Path) -> Result<GitRepository, String> {
+        let repo = Repository::open(repo_path)
+            .map_err(|e| format!("Failed to open git repository: {}", e))?;
+
+        // Get repository name from the directory name
+        let name = repo_path
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or("Unknown")
+            .to_string();
+
+        // Calculate directory size
+        let size_mb = self.get_directory_size(repo_path)?;
+
+        // Get file types
+        let file_types = self.get_file_types(repo_path);
+
+        // Get git information
+        let (current_branch, branches, remote_url, commit_count, last_commit_date) = 
+            self.get_git_info(&repo)?;
+
+        Ok(GitRepository {
+            name,
+            path: repo_path.to_string_lossy().to_string(),
+            size_mb,
+            file_types,
+            last_commit_date,
+            current_branch,
+            branches,
+            remote_url,
+            commit_count,
+            last_analyzed: Utc::now(),
+            is_valid: true,
+        })
+    }
+
+    pub fn refresh_repository(&mut self, repo_path: &str) -> Result<GitRepository, String> {
+        let updated_repo = self.analyze_repository(Path::new(repo_path))?;
+        
+        // Update in cache
+        self.data_store.add_repository(updated_repo.clone())?;
+        
+        // Update in memory
+        if let Some(index) = self.repos.iter().position(|r| r.path == repo_path) {
+            self.repos[index] = updated_repo.clone();
+        }
+        
+        Ok(updated_repo)
+    }
+
+    pub fn get_cache_info(&self) -> Result<crate::data_store::CacheInfo, String> {
+        self.data_store.get_cache_info()
+    }
+
+    pub fn clear_cache(&self) -> Result<(), String> {
+        self.data_store.clear_cache()
+    }
+
+    pub fn cleanup_invalid_repositories(&self) -> Result<usize, String> {
+        self.data_store.cleanup_invalid_repositories()
+    }
+
+    fn get_directory_size(&self, path: &Path) -> Result<f64, String> {
+        let mut total_size = 0u64;
+
+        if let Ok(entries) = fs::read_dir(path) {
+            for entry in entries.flatten() {
+                let entry_path = entry.path();
+                if entry_path.is_file() {
+                    if let Ok(metadata) = entry.metadata() {
+                        total_size += metadata.len();
+                    }
+                } else if entry_path.is_dir() && entry_path.file_name() != Some(std::ffi::OsStr::new(".git")) {
+                    // Recursively calculate size, but skip .git directory to avoid double counting
+                    if let Ok(size) = self.get_directory_size(&entry_path) {
+                        total_size += (size * 1024.0 * 1024.0) as u64;
+                    }
+                }
+            }
+        }
+
+        Ok(total_size as f64 / (1024.0 * 1024.0)) // Convert to MB
+    }
+
+    fn get_file_types(&self, path: &Path) -> HashMap<String, u32> {
+        let mut file_types = HashMap::new();
+
+        if let Ok(entries) = WalkDir::new(path)
+            .max_depth(3) // Limit depth for performance
+            .into_iter()
+            .filter_entry(|e| {
+                // Skip .git and other hidden directories
+                !e.path().file_name()
+                    .and_then(|n| n.to_str())
+                    .map(|s| s.starts_with('.'))
+                    .unwrap_or(false)
+            })
+            .collect::<Result<Vec<_>, _>>()
+        {
+            for entry in entries {
+                if entry.path().is_file() {
+                    if let Some(extension) = entry.path().extension().and_then(|e| e.to_str()) {
+                        *file_types.entry(extension.to_lowercase()).or_insert(0) += 1;
+                    }
+                }
+            }
+        }
+
+        file_types
+    }
+
+    fn get_git_info(&self, repo: &Repository) -> Result<(Option<String>, Vec<String>, Option<String>, u32, Option<DateTime<Utc>>), String> {
+        // Get current branch
+        let current_branch = repo.head()
+            .ok()
+            .and_then(|head| head.shorthand().map(|s| s.to_string()));
+
+        // Get all branches
+        let mut branches = Vec::new();
+        if let Ok(branch_iter) = repo.branches(None) {
+            for branch in branch_iter {
+                if let Ok((branch, _)) = branch {
+                    if let Some(name) = branch.name().ok().flatten() {
+                        branches.push(name.to_string());
+                    }
+                }
+            }
+        }
+
+        // Get remote URL
+        let remote_url = repo.find_remote("origin")
+            .ok()
+            .and_then(|remote| remote.url().map(|s| s.to_string()));
+
+        // Get commit count and last commit date
+        let mut commit_count = 0u32;
+        let mut last_commit_date = None;
+
+        if let Ok(mut revwalk) = repo.revwalk() {
+            if revwalk.push_head().is_ok() {
+                for commit_id in revwalk.take(1000) { // Limit to first 1000 commits for performance
+                    if let Ok(commit_oid) = commit_id {
+                        commit_count += 1;
+                        
+                        // Get the most recent commit date
+                        if last_commit_date.is_none() {
+                            if let Ok(commit) = repo.find_commit(commit_oid) {
+                                let time = commit.time();
+                                last_commit_date = Some(DateTime::from_timestamp(time.seconds(), 0)
+                                    .unwrap_or_else(|| Utc::now()));
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        Ok((current_branch, branches, remote_url, commit_count, last_commit_date))
+    }
+}
