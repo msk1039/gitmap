@@ -1,5 +1,8 @@
 import React from 'react';
 import { GitRepository } from '../types/repository';
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { GitBranch, ExternalLink, RefreshCw, Folder } from "lucide-react";
 
 interface RepositoryListProps {
   repositories: GitRepository[];
@@ -31,113 +34,129 @@ export const RepositoryList: React.FC<RepositoryListProps> = ({
   const getTopFileTypes = (fileTypes: Record<string, number>) => {
     return Object.entries(fileTypes)
       .sort(([,a], [,b]) => b - a)
-      .slice(0, 3)
-      .map(([ext, count]) => `${ext} (${count})`)
+      .slice(0, 2)
+      .map(([ext]) => ext)
       .join(', ');
   };
 
   if (isLoading) {
     return (
-      <div className="space-y-4">
-        {[...Array(3)].map((_, i) => (
-          <div key={i} className="bg-gray-200 rounded-lg h-32 animate-pulse" />
-        ))}
+      <div className="border">
+        <ul>
+          {[...Array(5)].map((_, i) => (
+            <li key={i} className="border-b last:border-b-0">
+              <div className="block p-4 animate-pulse">
+                <div className="flex items-center justify-between gap-4">
+                  <div className="flex flex-col items-start flex-1">
+                    <div className="h-4 bg-muted rounded w-48 mb-2"></div>
+                    <div className="h-3 bg-muted rounded w-64"></div>
+                  </div>
+                  <div className="flex flex-col items-end min-w-32">
+                    <div className="h-3 bg-muted rounded w-16 mb-1"></div>
+                    <div className="h-3 bg-muted rounded w-20"></div>
+                  </div>
+                </div>
+              </div>
+            </li>
+          ))}
+        </ul>
       </div>
     );
   }
 
   if (repositories.length === 0) {
     return (
-      <div className="text-center py-12">
-        <div className="text-gray-400 text-6xl mb-4">📁</div>
-        <h3 className="text-lg font-medium text-gray-900 mb-2">No repositories found</h3>
-        <p className="text-gray-500">
-          Click "Quick Scan" to load from cache or "Full Rescan" to search your entire disk.
-        </p>
+      <div className="border">
+        <div className="flex items-center justify-center w-full p-8 text-sm text-muted-foreground">
+          <div className="text-center">
+            <Folder className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
+            <div>No repositories found</div>
+            <div className="text-xs mt-1">Click "Scan Repositories" to search for Git repositories</div>
+          </div>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-4">
-      {repositories.map((repo) => (
-        <div 
-          key={repo.path}
-          className="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow border border-gray-200"
-        >
-          <div className="flex items-start justify-between mb-4">
-            <div className="flex items-center flex-1">
-              <div className="text-4xl mr-4">📁</div>
-              <div className="flex-1">
-                <h3 className="text-lg font-semibold text-gray-900 mb-1">{repo.name}</h3>
-                <p className="text-sm text-gray-500 truncate mb-2">{repo.path}</p>
-                <div className="flex items-center space-x-4 text-xs text-gray-600">
-                  <span>📊 {formatSize(repo.size_mb)}</span>
-                  <span>🌿 {repo.current_branch || 'Unknown branch'}</span>
-                  <span>📝 {repo.commit_count} commits</span>
-                  <span className={`px-2 py-1 rounded ${repo.is_valid ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-                    {repo.is_valid ? 'Valid' : 'Invalid'}
-                  </span>
+    <div className="border">
+      <ul>
+        {repositories.map((repo) => {
+          const topFileTypes = getTopFileTypes(repo.file_types);
+          
+          return (
+            <li key={repo.path} className="border-b last:border-b-0">
+              <div
+                className="block p-4 text-sm font-medium transition-colors hover:bg-foreground hover:text-background cursor-pointer group"
+                onClick={() => onRepositoryClick?.(repo.path, repo.name)}
+              >
+                <div className="flex items-center justify-between gap-4">
+                  <div className="flex flex-col items-start flex-1 min-w-0">
+                    <div className="flex items-baseline gap-2 mb-2">
+                      <h3 className="font-semibold truncate">{repo.name}</h3>
+                      <Badge 
+                        variant={repo.is_valid ? "default" : "destructive"}
+                        className="text-xs shrink-0"
+                      >
+                        {repo.is_valid ? 'Valid' : 'Invalid'}
+                      </Badge>
+                    </div>
+                    
+                    <div className="text-xs text-muted-foreground group-hover:text-background/70 mb-2 truncate w-full">
+                      {repo.path}
+                    </div>
+                    
+                    <div className="flex items-center gap-4 text-xs text-muted-foreground group-hover:text-background/70">
+                      <div className="flex items-center gap-1">
+                        <GitBranch className="h-3 w-3" />
+                        <span>{repo.current_branch || 'Unknown'}</span>
+                      </div>
+                      <span>{repo.commit_count} commits</span>
+                      <span>{formatSize(repo.size_mb)}</span>
+                      {topFileTypes && <span>{topFileTypes}</span>}
+                    </div>
+                  </div>
+                  
+                  <div className="flex flex-col items-end min-w-32 shrink-0">
+                    <div className="flex gap-1 mb-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-6 px-2 text-xs opacity-0 group-hover:opacity-100 transition-opacity"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onOpenInVSCode(repo.path);
+                        }}
+                      >
+                        <ExternalLink className="h-3 w-3 mr-1" />
+                        VS Code
+                      </Button>
+                      {onRefresh && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-6 px-2 text-xs opacity-0 group-hover:opacity-100 transition-opacity"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onRefresh(repo.path);
+                          }}
+                        >
+                          <RefreshCw className="h-3 w-3" />
+                        </Button>
+                      )}
+                    </div>
+                    
+                    <div className="text-xs text-muted-foreground group-hover:text-background/70 text-right">
+                      <div>Last commit:</div>
+                      <div>{formatDate(repo.last_commit_date)}</div>
+                    </div>
+                  </div>
                 </div>
               </div>
-            </div>
-            <div className="flex space-x-2">
-              <button
-                onClick={() => onOpenInVSCode(repo.path)}
-                className="px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
-              >
-                Open in VS Code
-              </button>
-              {onRefresh && (
-                <button
-                  onClick={() => onRefresh(repo.path)}
-                  className="px-3 py-1 text-sm bg-green-600 text-white rounded hover:bg-green-700 transition-colors"
-                >
-                  Refresh
-                </button>
-              )}
-              {onRepositoryClick && (
-                <button
-                  onClick={() => onRepositoryClick(repo.path, repo.name)}
-                  className="px-3 py-1 text-sm bg-gray-100 text-gray-700 rounded hover:bg-gray-200 transition-colors"
-                >
-                  Details
-                </button>
-              )}
-            </div>
-          </div>
-          
-          <div className="space-y-2 text-sm">
-            <div className="flex items-center">
-              <span className="text-gray-600">📅 Last commit: {formatDate(repo.last_commit_date)}</span>
-            </div>
-            
-            <div className="flex items-center">
-              <span className="text-gray-600">🔍 Last analyzed: {formatDate(repo.last_analyzed)}</span>
-            </div>
-            
-            {getTopFileTypes(repo.file_types) && (
-              <div className="text-gray-500">
-                <span>📄 File types: {getTopFileTypes(repo.file_types)}</span>
-              </div>
-            )}
-
-            {repo.remote_url && (
-              <div className="text-gray-500">
-                <span>🔗 Remote: </span>
-                <a 
-                  href={repo.remote_url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-blue-600 hover:text-blue-800 truncate"
-                >
-                  {repo.remote_url}
-                </a>
-              </div>
-            )}
-          </div>
-        </div>
-      ))}
+            </li>
+          );
+        })}
+      </ul>
     </div>
   );
 };

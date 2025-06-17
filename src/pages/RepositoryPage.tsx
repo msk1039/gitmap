@@ -4,6 +4,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { GitRepository, DirectoryListing } from '../types/repository';
 import { RepositoryDetail } from '../components/RepositoryDetailView';
 import { useRepositoryManager } from '../hooks/useRepositoryManager';
+import { GitBranchIcon } from "lucide-react";
 
 export const RepositoryPage: React.FC = () => {
   const { repoName } = useParams<{ repoName: string }>();
@@ -73,10 +74,29 @@ export const RepositoryPage: React.FC = () => {
 
   if (isLoading) {
     return (
-      <div className="container mx-auto px-4 py-8 max-w-7xl">
-        <div className="flex items-center justify-center py-12">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-          <span className="ml-4 text-lg text-gray-600">Loading repository details...</span>
+      <div className="h-full grow flex flex-col font-mono">
+        {/* Header */}
+        <header className="border-b">
+          <div className="flex h-12 items-center justify-between">
+            <div className="flex justify-center items-center gap-2 w-32 border-r h-full">
+              <GitBranchIcon className="h-4 w-4 text-primary" />
+              <span className="text-sm font-medium">gitmanager</span>
+            </div>
+            <div className="flex items-center w-48 border-l h-12 justify-center">
+              <span className="text-xs text-muted-foreground">Loading...</span>
+            </div>
+          </div>
+        </header>
+
+        <div className="flex min-h-[calc(100vh-3rem)] w-full items-stretch">
+          <aside className="w-32 border-r"></aside>
+          <main className="h-full grow flex items-center justify-center">
+            <div className="flex items-center gap-4">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+              <span className="text-lg">Loading repository details...</span>
+            </div>
+          </main>
+          <aside className="w-32 border-l"></aside>
         </div>
       </div>
     );
@@ -84,24 +104,43 @@ export const RepositoryPage: React.FC = () => {
 
   if (error) {
     return (
-      <div className="container mx-auto px-4 py-8 max-w-7xl">
-        <div className="bg-red-50 border border-red-200 rounded-lg p-6">
-          <h2 className="text-lg font-semibold text-red-800 mb-2">Error Loading Repository</h2>
-          <p className="text-red-700 mb-4">{error}</p>
-          <div className="flex space-x-3">
-            <button
-              onClick={() => navigate('/')}
-              className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
-            >
-              Go Back
-            </button>
-            <button
-              onClick={() => window.location.reload()}
-              className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
-            >
-              Retry
-            </button>
+      <div className="h-full grow flex flex-col font-mono">
+        {/* Header */}
+        <header className="border-b">
+          <div className="flex h-12 items-center justify-between">
+            <div className="flex justify-center items-center gap-2 w-32 border-r h-full">
+              <GitBranchIcon className="h-4 w-4 text-primary" />
+              <span className="text-sm font-medium">gitmanager</span>
+            </div>
+            <div className="flex items-center w-48 border-l h-12 justify-center">
+              <span className="text-xs text-muted-foreground">Error</span>
+            </div>
           </div>
+        </header>
+
+        <div className="flex min-h-[calc(100vh-3rem)] w-full items-stretch">
+          <aside className="w-32 border-r"></aside>
+          <main className="h-full grow flex items-center justify-center">
+            <div className="max-w-md text-center space-y-4">
+              <h2 className="text-xl font-semibold text-destructive">Error Loading Repository</h2>
+              <p className="text-muted-foreground">{error}</p>
+              <div className="flex justify-center gap-3">
+                <button
+                  onClick={() => navigate('/')}
+                  className="px-4 py-2 bg-secondary text-secondary-foreground rounded-lg hover:bg-secondary/80 transition-colors"
+                >
+                  Go Back
+                </button>
+                <button
+                  onClick={() => window.location.reload()}
+                  className="px-4 py-2 bg-destructive text-destructive-foreground rounded-lg hover:bg-destructive/90 transition-colors"
+                >
+                  Retry
+                </button>
+              </div>
+            </div>
+          </main>
+          <aside className="w-32 border-l"></aside>
         </div>
       </div>
     );
@@ -109,28 +148,70 @@ export const RepositoryPage: React.FC = () => {
 
   if (!repository) {
     return (
-      <div className="container mx-auto px-4 py-8 max-w-7xl">
-        <div className="text-center py-12">
-          <h2 className="text-xl font-semibold text-gray-900 mb-2">Repository Not Found</h2>
-          <p className="text-gray-600 mb-4">The requested repository could not be found.</p>
-          <button
-            onClick={() => navigate('/')}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-          >
-            Go Back to Home
-          </button>
+      <div className="h-full grow flex flex-col font-mono">
+        {/* Header */}
+        <header className="border-b">
+          <div className="flex h-12 items-center justify-between">
+            <div className="flex justify-center items-center gap-2 w-32 border-r h-full">
+              <GitBranchIcon className="h-4 w-4 text-primary" />
+              <span className="text-sm font-medium">gitmanager</span>
+            </div>
+            <div className="flex items-center w-48 border-l h-12 justify-center">
+              <span className="text-xs text-muted-foreground">Not Found</span>
+            </div>
+          </div>
+        </header>
+
+        <div className="flex min-h-[calc(100vh-3rem)] w-full items-stretch">
+          <aside className="w-32 border-r"></aside>
+          <main className="h-full grow flex items-center justify-center">
+            <div className="text-center space-y-4">
+              <h2 className="text-xl font-semibold">Repository Not Found</h2>
+              <p className="text-muted-foreground">The requested repository could not be found.</p>
+              <button
+                onClick={() => navigate('/')}
+                className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
+              >
+                Go Back to Home
+              </button>
+            </div>
+          </main>
+          <aside className="w-32 border-l"></aside>
         </div>
       </div>
     );
   }
 
   return (
-    <RepositoryDetail
-      repository={repository}
-      directoryListing={directoryListing}
-      onOpenInVSCode={openInVSCode}
-      onRefresh={handleRefresh}
-      isLoading={isLoading}
-    />
+    <div className="h-full grow flex flex-col font-mono">
+      {/* Header */}
+      <header className="border-b">
+        <div className="flex h-12 items-center justify-between">
+          <div className="flex justify-center items-center gap-2 w-32 border-r h-full">
+            <GitBranchIcon className="h-4 w-4 text-primary" />
+            <span className="text-sm font-medium">gitmanager</span>
+          </div>
+          <div className="flex items-center w-48 border-l h-12 justify-center">
+            <span className="text-xs text-muted-foreground truncate px-2">
+              {repository.name}
+            </span>
+          </div>
+        </div>
+      </header>
+
+      <div className="flex min-h-[calc(100vh-3rem)] w-full items-stretch">
+        <aside className="w-32 border-r"></aside>
+        <main className="h-full grow">
+          <RepositoryDetail
+            repository={repository}
+            directoryListing={directoryListing}
+            onOpenInVSCode={openInVSCode}
+            onRefresh={handleRefresh}
+            isLoading={isLoading}
+          />
+        </main>
+        <aside className="w-32 border-l"></aside>
+      </div>
+    </div>
   );
 };

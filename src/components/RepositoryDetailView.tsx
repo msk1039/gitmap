@@ -1,5 +1,14 @@
 import React from 'react';
-import { GitRepository, DirectoryListing, FileEntry } from '../types/repository';
+import { GitRepository, DirectoryListing } from '../types/repository';
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { RepositoryFileList } from './RepositoryFileList';
+import { ReadmeRenderer } from './ReadmeRenderer';
+import { 
+  GitBranch, 
+  ExternalLink, 
+  RefreshCw
+} from "lucide-react";
 
 interface RepositoryDetailProps {
   repository: GitRepository;
@@ -9,84 +18,6 @@ interface RepositoryDetailProps {
   isLoading?: boolean;
 }
 
-const formatFileSize = (bytes: number): string => {
-  const units = ['B', 'KB', 'MB', 'GB'];
-  let size = bytes;
-  let unitIndex = 0;
-  
-  while (size >= 1024 && unitIndex < units.length - 1) {
-    size /= 1024;
-    unitIndex++;
-  }
-  
-  return `${size.toFixed(1)} ${units[unitIndex]}`;
-};
-
-const getFileIcon = (entry: FileEntry): string => {
-  if (entry.is_directory) {
-    return '📁';
-  }
-  
-  const extension = entry.name.split('.').pop()?.toLowerCase();
-  switch (extension) {
-    case 'js':
-    case 'jsx':
-    case 'ts':
-    case 'tsx':
-      return '📄';
-    case 'json':
-      return '📋';
-    case 'md':
-    case 'mdx':
-      return '📝';
-    case 'css':
-    case 'scss':
-    case 'sass':
-      return '🎨';
-    case 'html':
-    case 'htm':
-      return '🌐';
-    case 'py':
-      return '🐍';
-    case 'rs':
-      return '🦀';
-    case 'go':
-      return '🐹';
-    case 'java':
-      return '☕';
-    case 'cpp':
-    case 'cc':
-    case 'cxx':
-      return '⚙️';
-    case 'c':
-      return '🔧';
-    case 'sh':
-    case 'bash':
-      return '🔨';
-    case 'yml':
-    case 'yaml':
-      return '⚙️';
-    case 'xml':
-      return '📊';
-    case 'sql':
-      return '🗃️';
-    case 'png':
-    case 'jpg':
-    case 'jpeg':
-    case 'gif':
-    case 'svg':
-      return '🖼️';
-    case 'pdf':
-      return '📕';
-    case 'zip':
-    case 'tar':
-    case 'gz':
-      return '📦';
-    default:
-      return '📄';
-  }
-};
-
 export const RepositoryDetail: React.FC<RepositoryDetailProps> = ({
   repository,
   directoryListing,
@@ -95,115 +26,82 @@ export const RepositoryDetail: React.FC<RepositoryDetailProps> = ({
   isLoading = false
 }) => {
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="container mx-auto px-4 py-6 max-w-7xl">
-        {/* Header without back button */}
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">
-              {repository.name}
-            </h1>
-            <p className="text-sm text-gray-600 mt-1">{repository.path}</p>
+    <div className="p-4 mx-auto md:max-w-7xl w-full flex flex-col gap-4">
+      {/* Repository name and controls row */}
+      <div className="flex flex-col gap-2">
+        <h1 className="text-xl font-semibold text-foreground">{repository.name}</h1>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Badge variant="outline" className="gap-1">
+              <GitBranch className="h-3 w-3" />
+              {repository.current_branch || 'Unknown'}
+            </Badge>
+            <Badge variant={repository.is_valid ? "default" : "destructive"}>
+              {repository.is_valid ? 'Valid' : 'Invalid'}
+            </Badge>
           </div>
-          
-          <div className="flex space-x-3">
-            <button
+          <div className="flex gap-2">
+            <Button
               onClick={() => onOpenInVSCode(repository.path)}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              size="sm"
+              className="gap-2"
             >
+              <ExternalLink className="h-4 w-4" />
               Open in VS Code
-            </button>
-            <button
+            </Button>
+            <Button
               onClick={() => onRefresh(repository.path)}
-              className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
+              variant="outline"
+              size="sm"
+              className="gap-2"
             >
+              <RefreshCw className="h-4 w-4" />
               Refresh
-            </button>
+            </Button>
           </div>
         </div>
+      </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* File Browser - Left Side */}
-          <div className="lg:col-span-2">
-            <div className="bg-white rounded-lg border border-gray-200 shadow-sm">
-              <div className="px-4 py-3 border-b border-gray-200 bg-gray-50 rounded-t-lg">
-                <h2 className="text-lg font-semibold text-gray-900">Files</h2>
-                <p className="text-sm text-gray-600">{repository.path}</p>
-              </div>
-              
-              <div className="p-0">
-                {isLoading ? (
-                  <div className="flex items-center justify-center py-12">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-                    <span className="ml-3 text-gray-600">Loading files...</span>
-                  </div>
-                ) : directoryListing ? (
-                  <div className="divide-y divide-gray-100">
-                    {directoryListing.entries.map((entry, index) => (
-                      <div
-                        key={`${entry.name}-${index}`}
-                        className="flex items-center px-4 py-3 hover:bg-gray-50 transition-colors"
-                      >
-                        <span className="text-lg mr-3">{getFileIcon(entry)}</span>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-gray-900 truncate">
-                            {entry.name}
-                          </p>
-                          {entry.modified && (
-                            <p className="text-xs text-gray-500">
-                              Modified {new Date(entry.modified).toLocaleDateString()}
-                            </p>
-                          )}
-                        </div>
-                        {!entry.is_directory && entry.size && (
-                          <span className="text-sm text-gray-500">
-                            {formatFileSize(entry.size)}
-                          </span>
-                        )}
-                      </div>
-                    ))}
-                    
-                    {directoryListing.entries.length === 0 && (
-                      <div className="px-4 py-12 text-center text-gray-500">
-                        No files found in this directory
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  <div className="px-4 py-12 text-center text-gray-500">
-                    Unable to load directory contents
-                  </div>
-                )}
-              </div>
-            </div>
+      <div className="w-full grid grid-cols-4 gap-8">
+        {/* File Browser and README */}
+        <div className="col-span-3 flex flex-col gap-4">
+          <div className="border-x">
+            <RepositoryFileList
+              directoryListing={directoryListing}
+              isLoading={isLoading}
+            />
           </div>
 
-          {/* Repository Info - Right Side */}
-          <div className="space-y-6">
-            {/* Repository Stats */}
-            <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Repository Info</h3>
-              
-              <div className="space-y-4">
+          {/* README Renderer */}
+          <ReadmeRenderer repositoryPath={repository.path} />
+        </div>
+
+        {/* Repository Info Sidebar */}
+        <div className="col-span-1 flex flex-col gap-2">
+          {/* About Section */}
+          <section className="flex flex-col gap-2">
+            <div>
+              <h2 className="font-bold">About</h2>
+              <div className="space-y-3 mt-2">
                 <div>
-                  <p className="text-sm font-medium text-gray-600">Size</p>
-                  <p className="text-lg text-gray-900">{(repository.size_mb / 1024).toFixed(2)} GB</p>
+                  <p className="text-sm font-medium text-muted-foreground">Size</p>
+                  <p className="text-sm">{(repository.size_mb / 1024).toFixed(2)} GB</p>
                 </div>
                 
                 <div>
-                  <p className="text-sm font-medium text-gray-600">Current Branch</p>
-                  <p className="text-lg text-gray-900">{repository.current_branch || 'Unknown'}</p>
+                  <p className="text-sm font-medium text-muted-foreground">Current Branch</p>
+                  <p className="text-sm">{repository.current_branch || 'Unknown'}</p>
                 </div>
                 
                 <div>
-                  <p className="text-sm font-medium text-gray-600">Total Commits</p>
-                  <p className="text-lg text-gray-900">{repository.commit_count.toLocaleString()}</p>
+                  <p className="text-sm font-medium text-muted-foreground">Total Commits</p>
+                  <p className="text-sm">{repository.commit_count.toLocaleString()}</p>
                 </div>
                 
                 {repository.last_commit_date && (
                   <div>
-                    <p className="text-sm font-medium text-gray-600">Last Commit</p>
-                    <p className="text-lg text-gray-900">
+                    <p className="text-sm font-medium text-muted-foreground">Last Commit</p>
+                    <p className="text-sm">
                       {new Date(repository.last_commit_date).toLocaleDateString()}
                     </p>
                   </div>
@@ -211,12 +109,12 @@ export const RepositoryDetail: React.FC<RepositoryDetailProps> = ({
                 
                 {repository.remote_url && (
                   <div>
-                    <p className="text-sm font-medium text-gray-600">Remote URL</p>
+                    <p className="text-sm font-medium text-muted-foreground">Remote URL</p>
                     <a 
                       href={repository.remote_url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-blue-600 hover:text-blue-800 break-all"
+                      className="text-sm text-primary hover:underline break-all"
                     >
                       {repository.remote_url}
                     </a>
@@ -224,51 +122,55 @@ export const RepositoryDetail: React.FC<RepositoryDetailProps> = ({
                 )}
               </div>
             </div>
-
-            {/* Branches */}
-            <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                Branches ({repository.branches.length})
-              </h3>
-              
-              <div className="space-y-2 max-h-60 overflow-y-auto">
-                {repository.branches.map(branch => (
-                  <div
-                    key={branch}
-                    className={`px-3 py-2 rounded-lg text-sm ${
-                      branch === repository.current_branch 
-                        ? 'bg-blue-100 text-blue-800 font-medium' 
-                        : 'bg-gray-100 text-gray-700'
-                    }`}
-                  >
-                    {branch === repository.current_branch && (
-                      <span className="mr-2">●</span>
-                    )}
-                    {branch}
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* File Types */}
+            
+            {/* File Types as badges */}
             {Object.keys(repository.file_types).length > 0 && (
-              <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">File Types</h3>
-                
-                <div className="space-y-2">
+              <div className="mt-4">
+                <div className="flex flex-wrap gap-1">
                   {Object.entries(repository.file_types)
                     .sort(([,a], [,b]) => b - a)
-                    .slice(0, 10)
+                    .slice(0, 6)
                     .map(([ext, count]) => (
-                    <div key={ext} className="flex justify-between items-center">
-                      <span className="text-sm text-gray-600">.{ext}</span>
-                      <span className="text-sm font-medium text-gray-900">{count}</span>
-                    </div>
+                    <Badge key={ext} variant="secondary" className="text-xs">
+                      .{ext} ({count})
+                    </Badge>
                   ))}
                 </div>
               </div>
             )}
-          </div>
+          </section>
+
+          {/* Branches Section */}
+          {repository.branches.length > 0 && (
+            <section className="space-y-2 mt-6">
+              <h3 className="font-semibold flex items-center gap-2">
+                <GitBranch className="h-4 w-4" />
+                Branches ({repository.branches.length})
+              </h3>
+              <div className="space-y-1 max-h-48 overflow-y-auto">
+                {repository.branches.slice(0, 10).map(branch => (
+                  <div
+                    key={branch}
+                    className={`px-2 py-1 rounded text-xs ${
+                      branch === repository.current_branch 
+                        ? 'bg-primary/10 text-primary font-medium' 
+                        : 'bg-muted text-muted-foreground'
+                    }`}
+                  >
+                    {branch === repository.current_branch && (
+                      <span className="mr-1">●</span>
+                    )}
+                    {branch}
+                  </div>
+                ))}
+                {repository.branches.length > 10 && (
+                  <div className="text-xs text-muted-foreground px-2 py-1">
+                    +{repository.branches.length - 10} more branches
+                  </div>
+                )}
+              </div>
+            </section>
+          )}
         </div>
       </div>
     </div>

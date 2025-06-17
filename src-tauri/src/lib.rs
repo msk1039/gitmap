@@ -7,6 +7,8 @@ use git_scanner::GitScanner;
 use data_store::CacheInfo;
 use tauri::{command, Window, State};
 use std::sync::Mutex;
+use std::path::Path;
+use std::fs;
 
 struct AppState {
     scanner: Mutex<GitScanner>,
@@ -119,8 +121,6 @@ async fn refresh_repository(repo_path: String, state: State<'_, AppState>) -> Re
 
 #[command]
 async fn list_directory_contents(repo_path: String) -> Result<DirectoryListing, String> {
-    use std::fs;
-    use std::path::Path;
     use chrono::{DateTime, Utc};
     
     let path = Path::new(&repo_path);
@@ -205,6 +205,25 @@ async fn list_directory_contents(repo_path: String) -> Result<DirectoryListing, 
     })
 }
 
+#[command]
+async fn read_file_content(file_path: String) -> Result<String, String> {
+    let path = Path::new(&file_path);
+    
+    if !path.exists() {
+        return Err(format!("File does not exist: {}", file_path));
+    }
+    
+    if !path.is_file() {
+        return Err(format!("Path is not a file: {}", file_path));
+    }
+    
+    // Read the file content
+    match fs::read_to_string(path) {
+        Ok(content) => Ok(content),
+        Err(e) => Err(format!("Failed to read file: {}", e)),
+    }
+}
+
 // Keep the existing greet command for compatibility
 #[command]
 fn greet(name: &str) -> String {
@@ -232,7 +251,8 @@ pub fn run() {
                     cleanup_invalid_repositories,
                     open_in_vscode,
                     refresh_repository,
-                    list_directory_contents
+                    list_directory_contents,
+                    read_file_content
                 ])
                 .run(tauri::generate_context!())
                 .expect("error while running tauri application");

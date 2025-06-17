@@ -4,6 +4,8 @@ import { useRepositoryManager } from '../hooks/useRepositoryManager';
 import { RepositoryList } from '../components/RepositoryList';
 import { ScanProgress } from '../components/ScanProgress';
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { GitBranchIcon, Search, RefreshCw } from "lucide-react";
 
 export const HomePage: React.FC = () => {
   const navigate = useNavigate();
@@ -23,55 +25,92 @@ export const HomePage: React.FC = () => {
   };
 
   return (
-    <div className="container mx-auto px-4 py-8 max-w-6xl">
+    <div className="h-full grow flex flex-col font-mono">
       {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">
-          🗂️ Git Repository Manager
-        </h1>
-        <p className="text-gray-600">
-          Discover and manage your local Git repositories
-        </p>
-      </div>
+      <header className="border-b">
+        <div className="flex h-12 items-center justify-between">
+          <div className="flex justify-center items-center gap-2 w-32 border-r h-full">
+            <GitBranchIcon className="h-4 w-4 text-primary" />
+            <span className="text-sm font-medium">gitmanager</span>
+          </div>
+          
+          <div className="flex items-center gap-2 px-4">
+            <Badge variant="secondary" className="text-xs">
+              Local
+            </Badge>
+            <span className="text-xs text-muted-foreground">
+              {repositories.length} repositories found
+            </span>
+          </div>
 
-      {/* Error Display */}
-      {error && (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
-          <p className="text-red-800">❌ {error}</p>
+          <div className="flex items-center w-48 border-l h-12 justify-center">
+            <span className="text-xs text-muted-foreground">
+              Git Repository Manager
+            </span>
+          </div>
         </div>
-      )}
+      </header>
 
-      {/* Scan Progress */}
-      {isScanning && scanProgress && (
-        <ScanProgress progress={scanProgress} />
-      )}
-
-      {/* Controls */}
-      <div className="mb-6">
-        <Button
-          onClick={() => scanRepositories()}
-          disabled={isScanning}
-          className="flex items-center px-6 py-3 bg-black text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors mr-4"
-        >
-          <span className="mr-2">🔍</span>
-          {isScanning ? 'Scanning...' : 'Scan Repositories'}
-        </Button>
+      <div className="flex min-h-[calc(100vh-3rem)] w-full items-stretch">
+        <aside className="w-32 border-r"></aside>
         
-        {repositories.length > 0 && (
-          <p className="mt-2 text-sm text-gray-600">
-            Found {repositories.length} repositories
-          </p>
-        )}
-      </div>
+        <main className="h-full grow flex flex-col">
+          <div className="p-4 mx-auto md:max-w-7xl w-full flex flex-col gap-4">
+            {/* Title and Controls Section */}
+            <div className="flex flex-col gap-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h1 className="text-2xl font-bold">Local Repositories</h1>
+                  <p className="text-sm text-muted-foreground">
+                    Discover and manage your local Git repositories
+                  </p>
+                </div>
+                
+                <div className="flex items-center gap-2">
+                  <Button
+                    onClick={() => scanRepositories()}
+                    disabled={isScanning}
+                    size="sm"
+                    className="gap-2"
+                  >
+                    {isScanning ? (
+                      <RefreshCw className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Search className="h-4 w-4" />
+                    )}
+                    {isScanning ? 'Scanning...' : 'Scan Repositories'}
+                  </Button>
+                </div>
+              </div>
 
-      {/* Repository List */}
-      <RepositoryList
-        repositories={repositories}
-        onRepositoryClick={handleRepositoryClick}
-        onOpenInVSCode={openInVSCode}
-        onRefresh={refreshRepository}
-        isLoading={isScanning && !scanProgress}
-      />
+              {/* Error Display */}
+              {error && (
+                <div className="bg-destructive/10 border border-destructive/20 text-destructive rounded-lg p-4">
+                  <p className="text-sm">❌ {error}</p>
+                </div>
+              )}
+
+              {/* Scan Progress */}
+              {isScanning && scanProgress && (
+                <ScanProgress progress={scanProgress} />
+              )}
+            </div>
+
+            {/* Repository Grid */}
+            <div className="w-full">
+              <RepositoryList
+                repositories={repositories}
+                onRepositoryClick={handleRepositoryClick}
+                onOpenInVSCode={openInVSCode}
+                onRefresh={refreshRepository}
+                isLoading={isScanning && !scanProgress}
+              />
+            </div>
+          </div>
+        </main>
+        
+        <aside className="w-32 border-l"></aside>
+      </div>
     </div>
   );
 };

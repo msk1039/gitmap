@@ -39,10 +39,10 @@ export const Layout: React.FC = () => {
   const breadcrumbs = getBreadcrumbs();
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Breadcrumb Navigation */}
+    <div className="min-h-screen bg-background">
+      {/* Breadcrumb Navigation - Only show on repository pages */}
       {breadcrumbs.length > 1 && (
-        <div className="bg-white border-b border-gray-200">
+        <div className="bg-background border-b">
           <div className="container mx-auto px-4 py-3 max-w-7xl">
             <Breadcrumb>
               <BreadcrumbList>
@@ -51,14 +51,14 @@ export const Layout: React.FC = () => {
                     {index > 0 && <BreadcrumbSeparator />}
                     <BreadcrumbItem>
                       {crumb.isCurrentPage ? (
-                        <BreadcrumbPage className="text-gray-900 font-medium">
+                        <BreadcrumbPage className="font-medium">
                           {crumb.name}
                         </BreadcrumbPage>
                       ) : (
                         <BreadcrumbLink asChild>
                           <Link 
                             to={crumb.path}
-                            className="text-gray-600 hover:text-gray-900 transition-colors"
+                            className="text-muted-foreground hover:text-foreground transition-colors"
                           >
                             {crumb.name}
                           </Link>
