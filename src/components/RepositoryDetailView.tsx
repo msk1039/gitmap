@@ -4,7 +4,6 @@ import { GitRepository, DirectoryListing, FileEntry } from '../types/repository'
 interface RepositoryDetailProps {
   repository: GitRepository;
   directoryListing: DirectoryListing | null;
-  onBack: () => void;
   onOpenInVSCode: (repoPath: string) => void;
   onRefresh: (repoPath: string) => void;
   isLoading?: boolean;
@@ -91,7 +90,6 @@ const getFileIcon = (entry: FileEntry): string => {
 export const RepositoryDetail: React.FC<RepositoryDetailProps> = ({
   repository,
   directoryListing,
-  onBack,
   onOpenInVSCode,
   onRefresh,
   isLoading = false
@@ -99,20 +97,13 @@ export const RepositoryDetail: React.FC<RepositoryDetailProps> = ({
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="container mx-auto px-4 py-6 max-w-7xl">
-        {/* Header with back button */}
+        {/* Header without back button */}
         <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center space-x-4">
-            <button
-              onClick={onBack}
-              className="flex items-center px-3 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
-            >
-              <span className="mr-2">←</span>
-              Back
-            </button>
-            <div className="h-6 w-px bg-gray-300"></div>
+          <div>
             <h1 className="text-2xl font-bold text-gray-900">
               {repository.name}
             </h1>
+            <p className="text-sm text-gray-600 mt-1">{repository.path}</p>
           </div>
           
           <div className="flex space-x-3">

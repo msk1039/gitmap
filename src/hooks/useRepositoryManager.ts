@@ -1,13 +1,10 @@
 import { useState, useCallback, useEffect } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
-import { GitRepository, ScanProgress, CacheInfo, DirectoryListing } from '../types/repository';
+import { GitRepository, ScanProgress, CacheInfo } from '../types/repository';
 
 export const useRepositoryManager = () => {
   const [repositories, setRepositories] = useState<GitRepository[]>([]);
-  const [selectedRepo, setSelectedRepo] = useState<GitRepository | null>(null);
-  const [currentView, setCurrentView] = useState<'list' | 'detail'>('list');
-  const [directoryListing, setDirectoryListing] = useState<DirectoryListing | null>(null);
   const [isScanning, setIsScanning] = useState<boolean>(false);
   const [scanProgress, setScanProgress] = useState<ScanProgress | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -92,47 +89,11 @@ export const useRepositoryManager = () => {
       setRepositories(prev => 
         prev.map(repo => repo.path === repoPath ? updatedRepo : repo)
       );
-      // Update selected repo if it's the one being refreshed
-      if (selectedRepo?.path === repoPath) {
-        setSelectedRepo(updatedRepo);
-      }
       await loadCacheInfo();
     } catch (err) {
       setError(err as string);
     }
-  }, [selectedRepo, loadCacheInfo]);
-
-  const loadDirectoryContents = useCallback(async (repoPath: string) => {
-    try {
-      const listing = await invoke<DirectoryListing>('list_directory_contents', { repoPath });
-      setDirectoryListing(listing);
-    } catch (err) {
-      setError(err as string);
-    }
-  }, []);
-
-  const navigateTo = useCallback((view: 'list' | 'detail', repo?: GitRepository) => {
-    setCurrentView(view);
-    if (view === 'detail' && repo) {
-      setSelectedRepo(repo);
-      loadDirectoryContents(repo.path);
-    } else {
-      setSelectedRepo(null);
-      setDirectoryListing(null);
-    }
-  }, [loadDirectoryContents]);
-
-  const navigateToRepository = useCallback((repo: GitRepository) => {
-    setSelectedRepo(repo);
-    setCurrentView('detail');
-    loadDirectoryContents(repo.path);
-  }, [loadDirectoryContents]);
-
-  const navigateBack = useCallback(() => {
-    setCurrentView('list');
-    setSelectedRepo(null);
-    setDirectoryListing(null);
-  }, []);
+  }, [loadCacheInfo]);
 
   // Listen for scan progress updates
   useEffect(() => {
@@ -147,14 +108,10 @@ export const useRepositoryManager = () => {
 
   return {
     repositories,
-    selectedRepo,
-    currentView,
-    directoryListing,
     isScanning,
     scanProgress,
     error,
     cacheInfo,
-    setSelectedRepo,
     scanRepositories,
     clearCache,
     cleanupInvalidRepositories,
@@ -162,9 +119,5 @@ export const useRepositoryManager = () => {
     refreshRepository,
     loadCachedRepositories,
     loadCacheInfo,
-    loadDirectoryContents,
-    navigateTo,
-    navigateToRepository,
-    navigateBack,
   };
 };

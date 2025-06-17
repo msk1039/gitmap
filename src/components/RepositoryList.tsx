@@ -3,7 +3,7 @@ import { GitRepository } from '../types/repository';
 
 interface RepositoryListProps {
   repositories: GitRepository[];
-  onRepositoryClick?: (repo: GitRepository) => void;
+  onRepositoryClick?: (repoPath: string, repoName: string) => void;
   onOpenInVSCode: (path: string) => void;
   onRefresh?: (path: string) => void;
   isLoading?: boolean;
@@ -98,7 +98,7 @@ export const RepositoryList: React.FC<RepositoryListProps> = ({
               )}
               {onRepositoryClick && (
                 <button
-                  onClick={() => onRepositoryClick(repo)}
+                  onClick={() => onRepositoryClick(repo.path, repo.name)}
                   className="px-3 py-1 text-sm bg-gray-100 text-gray-700 rounded hover:bg-gray-200 transition-colors"
                 >
                   Details
