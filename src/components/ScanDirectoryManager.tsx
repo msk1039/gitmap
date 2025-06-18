@@ -25,12 +25,41 @@ export const ScanDirectoryManager: React.FC<ScanDirectoryManagerProps> = ({
   onClose,
   onStartScan,
   isScanning = false,
-  repositories = [] // TODO: Use for updating scan statistics
+  repositories = []
 }) => {
   const [scanPaths, setScanPaths] = useState<ScanPath[]>([]);
   const [newPath, setNewPath] = useState('');
   const [selectedPaths, setSelectedPaths] = useState<Set<string>>(new Set());
   const [error, setError] = useState<string | null>(null);
+
+  // Calculate repository statistics for each scan path
+  const updateScanPathStatistics = (paths: ScanPath[]): ScanPath[] => {
+    return paths.map(scanPath => {
+      // Count repositories that are within this scan path
+      const reposInPath = repositories.filter(repo => 
+        repo.path.startsWith(scanPath.path)
+      );
+      
+      // Find the most recent scan date from repositories in this path
+      const lastScannedDates = reposInPath
+        .map(repo => repo.last_analyzed)
+        .filter(date => date)
+        .sort((a, b) => new Date(b).getTime() - new Date(a).getTime());
+      
+      return {
+        ...scanPath,
+        repositoryCount: reposInPath.length,
+        lastScanned: lastScannedDates.length > 0 ? lastScannedDates[0] : scanPath.lastScanned
+      };
+    });
+  };
+
+  // Update scan path statistics when repositories change
+  useEffect(() => {
+    if (repositories.length > 0) {
+      setScanPaths(prev => updateScanPathStatistics(prev));
+    }
+  }, [repositories]);
 
   // Load saved scan paths from localStorage on component mount
   useEffect(() => {
@@ -38,9 +67,10 @@ export const ScanDirectoryManager: React.FC<ScanDirectoryManagerProps> = ({
     if (savedPaths) {
       try {
         const paths = JSON.parse(savedPaths);
-        setScanPaths(paths);
+        const pathsWithStats = updateScanPathStatistics(paths);
+        setScanPaths(pathsWithStats);
         // Select all paths by default
-        setSelectedPaths(new Set(paths.map((p: ScanPath) => p.path)));
+        setSelectedPaths(new Set(pathsWithStats.map((p: ScanPath) => p.path)));
       } catch (err) {
         console.error('Failed to load saved scan paths:', err);
         // Set default paths if no saved paths
@@ -49,7 +79,7 @@ export const ScanDirectoryManager: React.FC<ScanDirectoryManagerProps> = ({
     } else {
       setDefaultPaths();
     }
-  }, []);
+  }, [repositories]); // Add repositories as dependency so it updates when repositories change
 
   const setDefaultPaths = () => {
     const defaultPaths: ScanPath[] = [
@@ -58,8 +88,9 @@ export const ScanDirectoryManager: React.FC<ScanDirectoryManagerProps> = ({
       { path: '/usr/local', repositoryCount: 0 },
     ];
     
-    setScanPaths(defaultPaths);
-    setSelectedPaths(new Set(defaultPaths.map(p => p.path)));
+    const pathsWithStats = updateScanPathStatistics(defaultPaths);
+    setScanPaths(pathsWithStats);
+    setSelectedPaths(new Set(pathsWithStats.map(p => p.path)));
   };
 
   // Save scan paths to localStorage whenever they change
@@ -86,7 +117,9 @@ export const ScanDirectoryManager: React.FC<ScanDirectoryManagerProps> = ({
       repositoryCount: 0
     };
 
-    setScanPaths(prev => [...prev, newScanPath]);
+    const updatedPaths = [...scanPaths, newScanPath];
+    const pathsWithStats = updateScanPathStatistics(updatedPaths);
+    setScanPaths(pathsWithStats);
     setSelectedPaths(prev => new Set([...prev, trimmedPath]));
     setNewPath('');
     setError(null);
@@ -228,11 +261,9 @@ export const ScanDirectoryManager: React.FC<ScanDirectoryManagerProps> = ({
                             {scanPath.lastScanned && (
                               <span>Last scanned: {new Date(scanPath.lastScanned).toLocaleDateString()}</span>
                             )}
-                            {scanPath.repositoryCount !== undefined && (
-                              <Badge variant="secondary" className="text-xs">
-                                {scanPath.repositoryCount} repos found
-                              </Badge>
-                            )}
+                            <Badge variant="secondary" className="text-xs">
+                              {scanPath.repositoryCount || 0} repo{(scanPath.repositoryCount || 0) !== 1 ? 's' : ''} found
+                            </Badge>
                           </div>
                         </div>
                       </div>
@@ -264,6 +295,23 @@ export const ScanDirectoryManager: React.FC<ScanDirectoryManagerProps> = ({
               <div className="text-xs text-muted-foreground mt-1">
                 {Array.from(selectedPaths).join(', ')}
               </div>
+              {/* Show total repositories in selected paths */}
+              {(() => {
+                const totalRepos = scanPaths
+                  .filter(path => selectedPaths.has(path.path))
+                  .reduce((sum, path) => sum + (path.repositoryCount || 0), 0);
+                
+                if (totalRepos > 0) {
+                  return (
+                    <div className="text-xs text-muted-foreground mt-1">
+                      <Badge variant="outline" className="text-xs">
+                        {totalRepos} repositories currently in selected paths
+                      </Badge>
+                    </div>
+                  );
+                }
+                return null;
+              })()}
             </div>
           )}
         </div>
