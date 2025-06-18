@@ -230,6 +230,67 @@ fn greet(name: &str) -> String {
     format!("Hello, {}! You've been greeted from Rust!", name)
 }
 
+#[command]
+async fn open_in_file_manager(repo_path: String) -> Result<(), String> {
+    use std::process::Command;
+    
+    let result = if cfg!(target_os = "macos") {
+        Command::new("open")
+            .arg(&repo_path)
+            .spawn()
+    } else if cfg!(target_os = "windows") {
+        Command::new("explorer")
+            .arg(&repo_path)
+            .spawn()
+    } else if cfg!(target_os = "linux") {
+        // Try common Linux file managers
+        Command::new("xdg-open")
+            .arg(&repo_path)
+            .spawn()
+            .or_else(|_| {
+                Command::new("nautilus")
+                    .arg(&repo_path)
+                    .spawn()
+            })
+            .or_else(|_| {
+                Command::new("dolphin")
+                    .arg(&repo_path)
+                    .spawn()
+            })
+            .or_else(|_| {
+                Command::new("thunar")
+                    .arg(&repo_path)
+                    .spawn()
+            })
+    } else {
+        return Err("Unsupported operating system".to_string());
+    };
+    
+    match result {
+        Ok(_) => Ok(()),
+        Err(e) => Err(format!("Failed to open file manager: {}", e))
+    }
+}
+
+#[command]
+async fn scan_custom_paths(
+    window: Window, 
+    state: State<'_, AppState>,
+    scan_paths: Vec<String>
+) -> Result<Vec<GitRepository>, String> {
+    // Create a new scanner for this operation
+    let mut temp_scanner = GitScanner::new()?;
+    let repos = temp_scanner.scan_custom_paths(&window, scan_paths).await?;
+    
+    // Update the state with the results
+    {
+        let mut scanner_guard = state.scanner.lock().map_err(|e| format!("Failed to lock scanner state: {}", e))?;
+        scanner_guard.repos = repos.clone();
+    }
+    
+    Ok(repos)
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     match GitScanner::new() {
@@ -252,7 +313,9 @@ pub fn run() {
                     open_in_vscode,
                     refresh_repository,
                     list_directory_contents,
-                    read_file_content
+                    read_file_content,
+                    open_in_file_manager,
+                    scan_custom_paths
                 ])
                 .run(tauri::generate_context!())
                 .expect("error while running tauri application");

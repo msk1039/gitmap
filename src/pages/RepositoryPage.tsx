@@ -1,16 +1,17 @@
 import React, { useEffect, useState } from 'react';
-import { useParams, useSearchParams, useNavigate } from 'react-router-dom';
+import { useParams, useSearchParams, useNavigate, Link } from 'react-router-dom';
 import { invoke } from '@tauri-apps/api/core';
 import { GitRepository, DirectoryListing } from '../types/repository';
 import { RepositoryDetail } from '../components/RepositoryDetailView';
 import { useRepositoryManager } from '../hooks/useRepositoryManager';
 import { GitBranchIcon } from "lucide-react";
+import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from '@/components/ui/breadcrumb';
 
 export const RepositoryPage: React.FC = () => {
   const { repoName } = useParams<{ repoName: string }>();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const { openInVSCode, refreshRepository } = useRepositoryManager();
+  const { openInVSCode, openInFileManager, refreshRepository } = useRepositoryManager();
   
   const [repository, setRepository] = useState<GitRepository | null>(null);
   const [directoryListing, setDirectoryListing] = useState<DirectoryListing | null>(null);
@@ -82,6 +83,31 @@ export const RepositoryPage: React.FC = () => {
               <GitBranchIcon className="h-4 w-4 text-primary" />
               <span className="text-sm font-medium">gitmanager</span>
             </div>
+
+            {/* Breadcrumbs */}
+            <div className="flex items-center flex-1 px-4">
+              <Breadcrumb>
+                <BreadcrumbList>
+                  <BreadcrumbItem>
+                    <BreadcrumbLink asChild>
+                      <Link 
+                        to="/"
+                        className="text-muted-foreground hover:text-foreground transition-colors"
+                      >
+                        Home
+                      </Link>
+                    </BreadcrumbLink>
+                  </BreadcrumbItem>
+                  <BreadcrumbSeparator />
+                  <BreadcrumbItem>
+                    <BreadcrumbPage className="font-medium">
+                      {repoName || 'Loading...'}
+                    </BreadcrumbPage>
+                  </BreadcrumbItem>
+                </BreadcrumbList>
+              </Breadcrumb>
+            </div>
+
             <div className="flex items-center w-48 border-l h-12 justify-center">
               <span className="text-xs text-muted-foreground">Loading...</span>
             </div>
@@ -109,9 +135,40 @@ export const RepositoryPage: React.FC = () => {
         <header className="border-b">
           <div className="flex h-12 items-center justify-between">
             <div className="flex justify-center items-center gap-2 w-32 border-r h-full">
-              <GitBranchIcon className="h-4 w-4 text-primary" />
-              <span className="text-sm font-medium">gitmanager</span>
+              <Link 
+                to="/"
+                className="text-muted-foreground hover:text-foreground hover:bg-muted-foreground/20 transition-colors"
+              >
+                <GitBranchIcon className="h-4 w-4 text-primary" />
+                <span className="text-sm font-medium">gitmanager</span>
+
+              </Link>
             </div>
+            
+            {/* Breadcrumbs */}
+            <div className="flex items-center flex-1 px-4">
+              <Breadcrumb>
+                <BreadcrumbList>
+                  <BreadcrumbItem>
+                    <BreadcrumbLink asChild>
+                      <Link 
+                        to="/"
+                        className="text-muted-foreground hover:text-foreground transition-colors"
+                      >
+                        Home
+                      </Link>
+                    </BreadcrumbLink>
+                  </BreadcrumbItem>
+                  <BreadcrumbSeparator />
+                  <BreadcrumbItem>
+                    <BreadcrumbPage className="font-medium">
+                      {repoName || 'Error'}
+                    </BreadcrumbPage>
+                  </BreadcrumbItem>
+                </BreadcrumbList>
+              </Breadcrumb>
+            </div>
+            
             <div className="flex items-center w-48 border-l h-12 justify-center">
               <span className="text-xs text-muted-foreground">Error</span>
             </div>
@@ -187,11 +244,44 @@ export const RepositoryPage: React.FC = () => {
       {/* Header */}
       <header className="border-b">
         <div className="flex h-12 items-center justify-between">
-          <div className="flex justify-center items-center gap-2 w-32 border-r h-full">
-            <GitBranchIcon className="h-4 w-4 text-primary" />
-            <span className="text-sm font-medium">gitmanager</span>
+              <Link 
+                to="/"
+                className="flex justify-center text-muted-foreground hover:text-foreground hover:bg-muted-foreground/20 transition-colors w-32 border-r h-full"
+              >
+          <div className="flex justify-center items-center gap-2 w-32 h-full">
+                <GitBranchIcon className="h-4 w-4 text-primary" />
+                <span className="text-sm font-medium">gitmanager</span>
+
+            </div>
+              </Link>
+
+          {/* Breadcrumbs */}
+          <div className="flex items-center flex-1 px-4">
+            <Breadcrumb>
+              <BreadcrumbList>
+                <BreadcrumbItem>
+                  <BreadcrumbLink asChild>
+                    <Link 
+                      to="/"
+                      className="text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                      Home
+                    </Link>
+                  </BreadcrumbLink>
+                </BreadcrumbItem>
+                <BreadcrumbSeparator />
+                <BreadcrumbItem>
+                  <BreadcrumbPage className="font-medium">
+                    {repository?.name || repoName}
+                  </BreadcrumbPage>
+                </BreadcrumbItem>
+              </BreadcrumbList>
+            </Breadcrumb>
           </div>
-          <div className="flex items-center w-48 border-l h-12 justify-center">
+
+
+
+          <div className="flex items-center w-32 border-l h-12 justify-center">
             <span className="text-xs text-muted-foreground truncate px-2">
               {repository.name}
             </span>
@@ -206,6 +296,7 @@ export const RepositoryPage: React.FC = () => {
             repository={repository}
             directoryListing={directoryListing}
             onOpenInVSCode={openInVSCode}
+            onOpenInFileManager={openInFileManager}
             onRefresh={handleRefresh}
             isLoading={isLoading}
           />

@@ -11,26 +11,14 @@ export const Layout: React.FC = () => {
       { name: 'Home', path: '/', isCurrentPage: location.pathname === '/' }
     ];
 
-    if (pathSegments.length > 0) {
-      // If we're on a repository page
-      if (pathSegments[0] === 'repository' && pathSegments[1]) {
-        const repoName = decodeURIComponent(pathSegments[1]);
-        breadcrumbs.push({
-          name: repoName,
-          path: `/repository/${pathSegments[1]}`,
-          isCurrentPage: pathSegments.length === 2
-        });
+    // Don't show breadcrumbs for repository pages - they handle their own breadcrumbs
+    if (pathSegments.length > 0 && pathSegments[0] === 'repository') {
+      return []; // Return empty array for repository pages
+    }
 
-        // If we're in a subdirectory of the repository
-        if (pathSegments.length > 2) {
-          const subPath = pathSegments.slice(2).join('/');
-          breadcrumbs.push({
-            name: decodeURIComponent(subPath),
-            path: location.pathname,
-            isCurrentPage: true
-          });
-        }
-      }
+    if (pathSegments.length > 0) {
+      // Handle other pages if needed in the future
+      // For now, we only have repository pages, so this section is mostly for future use
     }
 
     return breadcrumbs;
@@ -40,7 +28,7 @@ export const Layout: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Breadcrumb Navigation - Only show on repository pages */}
+      {/* Breadcrumb Navigation - Only show on non-repository pages */}
       {breadcrumbs.length > 1 && (
         <div className="bg-background border-b">
           <div className="container mx-auto px-4 py-3 max-w-7xl">

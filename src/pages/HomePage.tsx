@@ -1,27 +1,44 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useRepositoryManager } from '../hooks/useRepositoryManager';
 import { RepositoryList } from '../components/RepositoryList';
 import { ScanProgress } from '../components/ScanProgress';
+import { ScanDirectoryManager } from '../components/ScanDirectoryManager';
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { GitBranchIcon, Search, RefreshCw } from "lucide-react";
 
 export const HomePage: React.FC = () => {
   const navigate = useNavigate();
+  const [showScanDialog, setShowScanDialog] = useState(false);
+  
   const {
     repositories,
     isScanning,
     scanProgress,
     error,
-    scanRepositories,
+    scanCustomPaths,
     openInVSCode,
+    openInFileManager,
     refreshRepository,
   } = useRepositoryManager();
 
   const handleRepositoryClick = (repoPath: string, repoName: string) => {
     // Navigate to the repository detail page
     navigate(`/repository/${encodeURIComponent(repoName)}?path=${encodeURIComponent(repoPath)}`);
+  };
+
+  const handleShowScanDialog = () => {
+    setShowScanDialog(true);
+  };
+
+  const handleCloseScanDialog = () => {
+    setShowScanDialog(false);
+  };
+
+  const handleStartScan = (selectedPaths: string[]) => {
+    setShowScanDialog(false);
+    scanCustomPaths(selectedPaths);
   };
 
   return (
@@ -43,9 +60,9 @@ export const HomePage: React.FC = () => {
             </span>
           </div>
 
-          <div className="flex items-center w-48 border-l h-12 justify-center">
+          <div className="flex items-center w-32 border-l h-12 justify-center">
             <span className="text-xs text-muted-foreground">
-              Git Repository Manager
+              Home
             </span>
           </div>
         </div>
@@ -68,7 +85,7 @@ export const HomePage: React.FC = () => {
                 
                 <div className="flex items-center gap-2">
                   <Button
-                    onClick={() => scanRepositories()}
+                    onClick={handleShowScanDialog}
                     disabled={isScanning}
                     size="sm"
                     className="gap-2"
@@ -102,6 +119,7 @@ export const HomePage: React.FC = () => {
                 repositories={repositories}
                 onRepositoryClick={handleRepositoryClick}
                 onOpenInVSCode={openInVSCode}
+                onOpenInFileManager={openInFileManager}
                 onRefresh={refreshRepository}
                 isLoading={isScanning && !scanProgress}
               />
@@ -111,6 +129,15 @@ export const HomePage: React.FC = () => {
         
         <aside className="w-32 border-l"></aside>
       </div>
+
+      {/* Scan Directory Manager Dialog */}
+      <ScanDirectoryManager
+        isOpen={showScanDialog}
+        onClose={handleCloseScanDialog}
+        onStartScan={handleStartScan}
+        isScanning={isScanning}
+        repositories={repositories}
+      />
     </div>
   );
 };

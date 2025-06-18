@@ -52,6 +52,23 @@ export const useRepositoryManager = () => {
     }
   }, [loadCacheInfo]);
 
+  const scanCustomPaths = useCallback(async (scanPaths: string[]) => {
+    setIsScanning(true);
+    setError(null);
+    
+    try {
+      const repos = await invoke<GitRepository[]>('scan_custom_paths', { 
+        scanPaths 
+      });
+      setRepositories(repos);
+      await loadCacheInfo(); // Update cache info after scan
+    } catch (err) {
+      setError(err as string);
+    } finally {
+      setIsScanning(false);
+    }
+  }, [loadCacheInfo]);
+
   const clearCache = useCallback(async () => {
     try {
       await invoke('clear_cache');
@@ -95,6 +112,14 @@ export const useRepositoryManager = () => {
     }
   }, [loadCacheInfo]);
 
+  const openInFileManager = useCallback(async (repoPath: string) => {
+    try {
+      await invoke('open_in_file_manager', { repoPath });
+    } catch (err) {
+      setError(err as string);
+    }
+  }, []);
+
   // Listen for scan progress updates
   useEffect(() => {
     const unlistenProgress = listen<ScanProgress>('scan-progress', (event: any) => {
@@ -113,11 +138,13 @@ export const useRepositoryManager = () => {
     error,
     cacheInfo,
     scanRepositories,
+    scanCustomPaths,
     clearCache,
     cleanupInvalidRepositories,
     openInVSCode,
     refreshRepository,
     loadCachedRepositories,
     loadCacheInfo,
+    openInFileManager,
   };
 };

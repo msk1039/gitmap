@@ -101,6 +101,30 @@ impl GitScanner {
         Ok(self.repos.clone())
     }
 
+    pub async fn scan_custom_paths(&mut self, window: &Window, custom_paths: Vec<String>) -> Result<Vec<GitRepository>, String> {
+        self.repos.clear();
+        let mut repos_found = 0;
+
+        for path_str in custom_paths {
+            let root_path = PathBuf::from(&path_str);
+            if !root_path.exists() {
+                eprintln!("Warning: Scan path does not exist: {}", path_str);
+                continue;
+            }
+
+            self.scan_directory(&root_path, window, &mut repos_found).await?;
+        }
+
+        // Send final progress update
+        let _ = window.emit("scan-progress", ScanProgress {
+            current_path: "Scan completed".to_string(),
+            repos_found,
+            completed: true,
+        });
+
+        Ok(self.repos.clone())
+    }
+
     async fn scan_directory(&mut self, root_path: &Path, window: &Window, repos_found: &mut u32) -> Result<(), String> {
         let walker = WalkDir::new(root_path)
             .follow_links(false)

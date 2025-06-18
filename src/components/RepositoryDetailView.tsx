@@ -7,13 +7,15 @@ import { ReadmeRenderer } from './ReadmeRenderer';
 import { 
   GitBranch, 
   ExternalLink, 
-  RefreshCw
+  RefreshCw,
+  FolderOpen
 } from "lucide-react";
 
 interface RepositoryDetailProps {
   repository: GitRepository;
   directoryListing: DirectoryListing | null;
   onOpenInVSCode: (repoPath: string) => void;
+  onOpenInFileManager?: (repoPath: string) => void;
   onRefresh: (repoPath: string) => void;
   isLoading?: boolean;
 }
@@ -22,6 +24,7 @@ export const RepositoryDetail: React.FC<RepositoryDetailProps> = ({
   repository,
   directoryListing,
   onOpenInVSCode,
+  onOpenInFileManager,
   onRefresh,
   isLoading = false
 }) => {
@@ -36,9 +39,9 @@ export const RepositoryDetail: React.FC<RepositoryDetailProps> = ({
               <GitBranch className="h-3 w-3" />
               {repository.current_branch || 'Unknown'}
             </Badge>
-            <Badge variant={repository.is_valid ? "default" : "destructive"}>
+            {/* <Badge variant={repository.is_valid ? "default" : "destructive"}>
               {repository.is_valid ? 'Valid' : 'Invalid'}
-            </Badge>
+            </Badge> */}
           </div>
           <div className="flex gap-2">
             <Button
@@ -49,6 +52,17 @@ export const RepositoryDetail: React.FC<RepositoryDetailProps> = ({
               <ExternalLink className="h-4 w-4" />
               Open in VS Code
             </Button>
+            {onOpenInFileManager && (
+              <Button
+                onClick={() => onOpenInFileManager(repository.path)}
+                variant="outline"
+                size="sm"
+                className="gap-2"
+              >
+                <FolderOpen className="h-4 w-4" />
+                Open in Files
+              </Button>
+            )}
             <Button
               onClick={() => onRefresh(repository.path)}
               variant="outline"
@@ -65,7 +79,7 @@ export const RepositoryDetail: React.FC<RepositoryDetailProps> = ({
       <div className="w-full grid grid-cols-4 gap-8">
         {/* File Browser and README */}
         <div className="col-span-3 flex flex-col gap-4">
-          <div className="border-x">
+          <div className="border">
             <RepositoryFileList
               directoryListing={directoryListing}
               isLoading={isLoading}
