@@ -3,7 +3,7 @@ import { GitRepository } from '../types/repository';
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { GitBranch, ExternalLink, RefreshCw, Folder, ArrowUpDown, FolderOpen } from "lucide-react";
+import { GitBranch, ExternalLink, RefreshCw, Folder, ArrowUpDown, FolderOpen, Search } from "lucide-react";
 
 interface RepositoryListProps {
   repositories: GitRepository[];
@@ -12,6 +12,7 @@ interface RepositoryListProps {
   onOpenInFileManager?: (path: string) => void;
   onRefresh?: (path: string) => void;
   isLoading?: boolean;
+  searchQuery?: string;
 }
 
 type SortOption = 'name' | 'lastUpdated' | 'size';
@@ -22,12 +23,21 @@ export const RepositoryList: React.FC<RepositoryListProps> = ({
   onOpenInVSCode,
   onOpenInFileManager,
   onRefresh,
-  isLoading = false 
+  isLoading = false,
+  searchQuery = ''
 }) => {
   const [sortBy, setSortBy] = useState<SortOption>('name');
 
-  const sortedRepositories = useMemo(() => {
-    const sorted = [...repositories];
+  const filteredAndSortedRepositories = useMemo(() => {
+    // First filter by search query
+    const filtered = searchQuery.trim() 
+      ? repositories.filter(repo => 
+          repo.name.toLowerCase().includes(searchQuery.toLowerCase())
+        )
+      : repositories;
+    
+    // Then sort the filtered results
+    const sorted = [...filtered];
     
     switch (sortBy) {
       case 'name':
@@ -43,7 +53,7 @@ export const RepositoryList: React.FC<RepositoryListProps> = ({
       default:
         return sorted;
     }
-  }, [repositories, sortBy]);
+  }, [repositories, sortBy, searchQuery]);
   const formatSize = (sizeMb: number) => {
     if (sizeMb > 1024) {
       return `${(sizeMb / 1024).toFixed(1)} GB`;
@@ -132,7 +142,10 @@ export const RepositoryList: React.FC<RepositoryListProps> = ({
             </Select>
           </div>
           <div className="text-xs text-muted-foreground">
-            {repositories.length} repositories
+            {filteredAndSortedRepositories.length} repositories
+            {searchQuery && repositories.length !== filteredAndSortedRepositories.length && (
+              <span> (filtered from {repositories.length})</span>
+            )}
           </div>
         </div>
 
@@ -142,6 +155,44 @@ export const RepositoryList: React.FC<RepositoryListProps> = ({
               <Folder className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
               <div>No repositories found</div>
               <div className="text-xs mt-1">Click "Scan Repositories" to search for Git repositories</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // If there are repositories but none match the search
+  if (filteredAndSortedRepositories.length === 0 && searchQuery) {
+    return (
+      <div className="space-y-4">
+        {/* Filter Controls */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <ArrowUpDown className="h-4 w-4 text-muted-foreground" />
+            <span className="text-sm font-medium">Sort by:</span>
+            <Select value={sortBy} onValueChange={(value: SortOption) => setSortBy(value)}>
+              <SelectTrigger className="w-40">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="name">Name</SelectItem>
+                <SelectItem value="lastUpdated">Last Updated</SelectItem>
+                <SelectItem value="size">Repository Size</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="text-xs text-muted-foreground">
+            0 repositories (filtered from {repositories.length})
+          </div>
+        </div>
+
+        <div className="border">
+          <div className="flex items-center justify-center w-full p-8 text-sm text-muted-foreground">
+            <div className="text-center">
+              <Search className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
+              <div>No repositories match "{searchQuery}"</div>
+              <div className="text-xs mt-1">Try adjusting your search or clear the filter</div>
             </div>
           </div>
         </div>
@@ -168,14 +219,17 @@ export const RepositoryList: React.FC<RepositoryListProps> = ({
           </Select>
         </div>
         <div className="text-xs text-muted-foreground">
-          {repositories.length} repositories
+          {filteredAndSortedRepositories.length} repositories
+          {searchQuery && repositories.length !== filteredAndSortedRepositories.length && (
+            <span> (filtered from {repositories.length})</span>
+          )}
         </div>
       </div>
 
       {/* Repository List */}
       <div className="border">
         <ul>
-          {sortedRepositories.map((repo) => {
+          {filteredAndSortedRepositories.map((repo) => {
           const topFileTypes = getTopFileTypes(repo.file_types);
           
           return (

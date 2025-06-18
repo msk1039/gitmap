@@ -120,6 +120,21 @@ export const useRepositoryManager = () => {
     }
   }, []);
 
+  const refreshCache = useCallback(async () => {
+    setIsScanning(true);
+    setError(null);
+    
+    try {
+      const repos = await invoke<GitRepository[]>('refresh_cache');
+      setRepositories(repos);
+      await loadCacheInfo(); // Update cache info after refresh
+    } catch (err) {
+      setError(err as string);
+    } finally {
+      setIsScanning(false);
+    }
+  }, [loadCacheInfo]);
+
   // Listen for scan progress updates
   useEffect(() => {
     const unlistenProgress = listen<ScanProgress>('scan-progress', (event: any) => {
@@ -146,5 +161,6 @@ export const useRepositoryManager = () => {
     loadCachedRepositories,
     loadCacheInfo,
     openInFileManager,
+    refreshCache,
   };
 };

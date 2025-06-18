@@ -6,11 +6,13 @@ import { ScanProgress } from '../components/ScanProgress';
 import { ScanDirectoryManager } from '../components/ScanDirectoryManager';
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import { GitBranchIcon, Search, RefreshCw } from "lucide-react";
 
 export const HomePage: React.FC = () => {
   const navigate = useNavigate();
   const [showScanDialog, setShowScanDialog] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
   
   const {
     repositories,
@@ -18,6 +20,7 @@ export const HomePage: React.FC = () => {
     scanProgress,
     error,
     scanCustomPaths,
+    refreshCache,
     openInVSCode,
     openInFileManager,
     refreshRepository,
@@ -97,7 +100,40 @@ export const HomePage: React.FC = () => {
                     )}
                     {isScanning ? 'Scanning...' : 'Scan Repositories'}
                   </Button>
+                  <Button
+                    onClick={refreshCache}
+                    disabled={isScanning}
+                    variant="outline"
+                    size="sm"
+                    className="gap-2"
+                  >
+                    <RefreshCw className="h-4 w-4" />
+                    Refresh Cache
+                  </Button>
                 </div>
+              </div>
+
+              {/* Search Bar */}
+              <div className="flex items-center gap-4">
+                <div className="relative flex-1 max-w-md">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Search repositories by name..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-10"
+                  />
+                </div>
+                {searchQuery && (
+                  <Button
+                    onClick={() => setSearchQuery('')}
+                    variant="ghost"
+                    size="sm"
+                    className="text-muted-foreground hover:text-foreground"
+                  >
+                    Clear
+                  </Button>
+                )}
               </div>
 
               {/* Error Display */}
@@ -122,6 +158,7 @@ export const HomePage: React.FC = () => {
                 onOpenInFileManager={openInFileManager}
                 onRefresh={refreshRepository}
                 isLoading={isScanning && !scanProgress}
+                searchQuery={searchQuery}
               />
             </div>
           </div>

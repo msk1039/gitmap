@@ -291,6 +291,20 @@ async fn scan_custom_paths(
     Ok(repos)
 }
 
+#[command]
+async fn refresh_cache(state: State<'_, AppState>) -> Result<Vec<GitRepository>, String> {
+    let mut temp_scanner = GitScanner::new()?;
+    let refreshed_repos = temp_scanner.refresh_cache()?;
+    
+    // Update the state with the results
+    {
+        let mut scanner_guard = state.scanner.lock().map_err(|e| format!("Failed to lock scanner state: {}", e))?;
+        scanner_guard.repos = refreshed_repos.clone();
+    }
+    
+    Ok(refreshed_repos)
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     match GitScanner::new() {
@@ -315,7 +329,8 @@ pub fn run() {
                     list_directory_contents,
                     read_file_content,
                     open_in_file_manager,
-                    scan_custom_paths
+                    scan_custom_paths,
+                    refresh_cache
                 ])
                 .run(tauri::generate_context!())
                 .expect("error while running tauri application");

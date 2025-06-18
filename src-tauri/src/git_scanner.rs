@@ -241,6 +241,58 @@ impl GitScanner {
         Ok(updated_repo)
     }
 
+    pub fn refresh_cache(&mut self) -> Result<Vec<GitRepository>, String> {
+        let mut cache = self.data_store.load_cache()?;
+        let mut updated_repos = Vec::new();
+        let mut repos_to_remove = Vec::new();
+        let mut repos_to_update = Vec::new();
+        
+        // First pass: determine which repos to update or remove
+        for (path, repo) in &cache.repositories {
+            let repo_path = std::path::Path::new(path);
+            
+            // Check if the repository still exists
+            if repo_path.exists() && repo_path.join(".git").exists() {
+                // Repository exists, refresh its data
+                match self.analyze_repository(repo_path) {
+                    Ok(updated_repo) => {
+                        updated_repos.push(updated_repo.clone());
+                        repos_to_update.push((path.clone(), updated_repo));
+                    }
+                    Err(e) => {
+                        eprintln!("Failed to analyze repository {}: {}", path, e);
+                        // Keep the old data if analysis fails
+                        updated_repos.push(repo.clone());
+                    }
+                }
+            } else {
+                // Repository no longer exists, mark for removal
+                repos_to_remove.push(path.clone());
+            }
+        }
+        
+        // Second pass: apply the updates
+        for (path, updated_repo) in repos_to_update {
+            cache.repositories.insert(path, updated_repo);
+        }
+        
+        // Remove invalid repositories from cache
+        for path in &repos_to_remove {
+            cache.repositories.remove(path);
+        }
+        
+        // Update cache metadata
+        cache.last_updated = chrono::Utc::now();
+        
+        // Save updated cache
+        self.data_store.save_cache(&cache)?;
+        
+        // Update in-memory repos
+        self.repos = updated_repos.clone();
+        
+        Ok(updated_repos)
+    }
+
     pub fn get_cache_info(&self) -> Result<crate::data_store::CacheInfo, String> {
         self.data_store.get_cache_info()
     }
