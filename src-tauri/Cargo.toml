@@ -1,5 +1,5 @@
 [package]
-name = "simple-file-manager"
+name = "gitfinder"
 version = "0.1.0"
 description = "A Tauri App"
 authors = ["you"]
