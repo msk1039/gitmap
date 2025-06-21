@@ -2,6 +2,12 @@
 
 Never lose track of your Git repositories again. gitfinder scans your entire disk, finds all your Git repositories, and gives you instant access to open them in VS Code or your file manager. No more hunting through folders.
 
+
+
+https://github.com/user-attachments/assets/3c0a3aa8-e43e-4988-b3af-475a11940bfb
+
+
+
 ## Features
 
 ### 🔍 Full Disk Discovery
