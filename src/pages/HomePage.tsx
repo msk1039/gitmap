@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useRepositoryManager } from '../hooks/useRepositoryManager';
 import { RepositoryList } from '../components/RepositoryList';
@@ -7,12 +7,16 @@ import { ScanDirectoryManager } from '../components/ScanDirectoryManager';
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { GitBranchIcon, Search, RefreshCw } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { GitBranchIcon, Search, RefreshCw, ArrowUpDown } from "lucide-react";
+
+type SortOption = 'name' | 'lastUpdated' | 'size';
 
 export const HomePage: React.FC = () => {
   const navigate = useNavigate();
   const [showScanDialog, setShowScanDialog] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [sortBy, setSortBy] = useState<SortOption>('name');
   
   const {
     repositories,
@@ -25,6 +29,33 @@ export const HomePage: React.FC = () => {
     openInFileManager,
     refreshRepository,
   } = useRepositoryManager();
+
+  const filteredAndSortedRepositories = useMemo(() => {
+    // First filter by search query
+    const filtered = searchQuery.trim() 
+      ? repositories.filter(repo => 
+          repo.name.toLowerCase().includes(searchQuery.toLowerCase())
+        )
+      : repositories;
+    
+    // Then sort the filtered results
+    const sorted = [...filtered];
+    
+    switch (sortBy) {
+      case 'name':
+        return sorted.sort((a, b) => a.name.localeCompare(b.name));
+      case 'lastUpdated':
+        return sorted.sort((a, b) => {
+          const dateA = a.last_commit_date ? new Date(a.last_commit_date).getTime() : 0;
+          const dateB = b.last_commit_date ? new Date(b.last_commit_date).getTime() : 0;
+          return dateB - dateA; // Most recent first
+        });
+      case 'size':
+        return sorted.sort((a, b) => b.size_mb - a.size_mb); // Largest first
+      default:
+        return sorted;
+    }
+  }, [repositories, sortBy, searchQuery]);
 
   const handleRepositoryClick = (repoPath: string, repoName: string) => {
     // Navigate to the repository detail page
@@ -72,26 +103,78 @@ export const HomePage: React.FC = () => {
       </header>
 
       <div className="flex min-h-[calc(100vh-3rem)] w-full items-stretch">
-        <aside className="w-32 border-r"></aside>
+        <aside className="md:w-32 w-4 border-r"></aside>
         
         <main className="h-full grow flex flex-col">
-          <div className="p-4 mx-auto md:max-w-7xl w-full flex flex-col gap-4">
+          <div className="mx-auto md:max-w-7xl w-full flex flex-col">
             {/* Title and Controls Section */}
             <div className="flex flex-col gap-4">
-              <div className="flex items-center justify-between">
-                <div>
+              <div className="">
+                <div className='my-5'>
                   <h1 className="text-2xl font-bold">Local Repositories</h1>
                   <p className="text-sm text-muted-foreground">
                     Discover and manage your local Git repositories
                   </p>
                 </div>
                 
-                <div className="flex items-center gap-2">
+                
+
+            
+              <div className="grid lg:grid-cols-3  grid-cols-1 border w-full h-50 lg:h-15">
+
+               <div className="flex items-center justify-center gap-2 border-r border-b lg:border-b-0">
+                  <ArrowUpDown className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-sm font-medium">Sort by:</span>
+                  <Select value={sortBy} onValueChange={(value: SortOption) => setSortBy(value)}>
+                    <SelectTrigger className="w-40">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="name">Name</SelectItem>
+                      <SelectItem value="lastUpdated">Last Updated</SelectItem>
+                      <SelectItem value="size">Repository Size</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+
+
+                <div className="flex max-w-md border-r border-b lg:border-b-0">
+                  <div className='h-full w-10 flex items-center justify-center'>
+
+                  <Search className="transform h-4 w-4 text-muted-foreground" />
+                  </div>
+                  <div className='w-full h-full flex items-center justify-center'>
+
+                 
+                    <Input
+                    placeholder="Search repositories by name..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-full border-0 shadow-none focus:border-0 focus:ring-0 focus-visible:ring-0 focus-visible:ring-offset-0"
+                    />
+                  </div>
+                  {searchQuery && (
+                    <div className='h-full w-15 flex items-center justify-center mr-2'>
+                  <Button
+                  onClick={() => setSearchQuery('')}
+                  variant="ghost"
+                  size="sm"
+                  className="text-muted-foreground hover:text-foreground transform text-muted-foreground h-10 w-15 rounded-sm hover:cursor-pointer" 
+                  >
+                  Clear
+                  </Button>
+                  </div>
+                )}
+                </div>
+
+
+                <div className="flex items-center gap-2 justify-center items-center">
                   <Button
                     onClick={handleShowScanDialog}
                     disabled={isScanning}
                     size="sm"
-                    className="gap-2"
+                    className="gap-2 h-10 hover:cursor-pointer"
                   >
                     {isScanning ? (
                       <RefreshCw className="h-4 w-4 animate-spin" />
@@ -105,35 +188,17 @@ export const HomePage: React.FC = () => {
                     disabled={isScanning}
                     variant="outline"
                     size="sm"
-                    className="gap-2"
+                    className="gap-2 h-10 hover:cursor-pointer"
                   >
                     <RefreshCw className="h-4 w-4" />
                     Refresh Cache
                   </Button>
                 </div>
               </div>
-
-              {/* Search Bar */}
-              <div className="flex items-center gap-4">
-                <div className="relative flex-1 max-w-md">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    placeholder="Search repositories by name..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-10"
-                  />
-                </div>
-                {searchQuery && (
-                  <Button
-                    onClick={() => setSearchQuery('')}
-                    variant="ghost"
-                    size="sm"
-                    className="text-muted-foreground hover:text-foreground"
-                  >
-                    Clear
-                  </Button>
-                )}
+                
+                
+                
+                
               </div>
 
               {/* Error Display */}
@@ -152,19 +217,18 @@ export const HomePage: React.FC = () => {
             {/* Repository Grid */}
             <div className="w-full">
               <RepositoryList
-                repositories={repositories}
+                repositories={filteredAndSortedRepositories}
                 onRepositoryClick={handleRepositoryClick}
                 onOpenInVSCode={openInVSCode}
                 onOpenInFileManager={openInFileManager}
                 onRefresh={refreshRepository}
                 isLoading={isScanning && !scanProgress}
-                searchQuery={searchQuery}
               />
             </div>
           </div>
         </main>
         
-        <aside className="w-32 border-l"></aside>
+        <aside className="md:w-32 w-4 border-l"></aside>
       </div>
 
       {/* Scan Directory Manager Dialog */}

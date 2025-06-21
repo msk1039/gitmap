@@ -1,9 +1,8 @@
-import React, { useState, useMemo } from 'react';
+import React from 'react';
 import { GitRepository } from '../types/repository';
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { GitBranch, ExternalLink, RefreshCw, Folder, ArrowUpDown, FolderOpen, Search } from "lucide-react";
+import { GitBranch, ExternalLink, RefreshCw, Folder, FolderOpen } from "lucide-react";
 
 interface RepositoryListProps {
   repositories: GitRepository[];
@@ -12,10 +11,7 @@ interface RepositoryListProps {
   onOpenInFileManager?: (path: string) => void;
   onRefresh?: (path: string) => void;
   isLoading?: boolean;
-  searchQuery?: string;
 }
-
-type SortOption = 'name' | 'lastUpdated' | 'size';
 
 export const RepositoryList: React.FC<RepositoryListProps> = ({ 
   repositories, 
@@ -23,37 +19,8 @@ export const RepositoryList: React.FC<RepositoryListProps> = ({
   onOpenInVSCode,
   onOpenInFileManager,
   onRefresh,
-  isLoading = false,
-  searchQuery = ''
+  isLoading = false
 }) => {
-  const [sortBy, setSortBy] = useState<SortOption>('name');
-
-  const filteredAndSortedRepositories = useMemo(() => {
-    // First filter by search query
-    const filtered = searchQuery.trim() 
-      ? repositories.filter(repo => 
-          repo.name.toLowerCase().includes(searchQuery.toLowerCase())
-        )
-      : repositories;
-    
-    // Then sort the filtered results
-    const sorted = [...filtered];
-    
-    switch (sortBy) {
-      case 'name':
-        return sorted.sort((a, b) => a.name.localeCompare(b.name));
-      case 'lastUpdated':
-        return sorted.sort((a, b) => {
-          const dateA = a.last_commit_date ? new Date(a.last_commit_date).getTime() : 0;
-          const dateB = b.last_commit_date ? new Date(b.last_commit_date).getTime() : 0;
-          return dateB - dateA; // Most recent first
-        });
-      case 'size':
-        return sorted.sort((a, b) => b.size_mb - a.size_mb); // Largest first
-      default:
-        return sorted;
-    }
-  }, [repositories, sortBy, searchQuery]);
   const formatSize = (sizeMb: number) => {
     if (sizeMb > 1024) {
       return `${(sizeMb / 1024).toFixed(1)} GB`;
@@ -77,27 +44,6 @@ export const RepositoryList: React.FC<RepositoryListProps> = ({
   if (isLoading) {
     return (
       <div className="space-y-4">
-        {/* Filter Controls - Disabled during loading */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <ArrowUpDown className="h-4 w-4 text-muted-foreground" />
-            <span className="text-sm font-medium">Sort by:</span>
-            <Select disabled value="name">
-              <SelectTrigger className="w-40">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="name">Name</SelectItem>
-                <SelectItem value="lastUpdated">Last Updated</SelectItem>
-                <SelectItem value="size">Repository Size</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="text-xs text-muted-foreground">
-            Loading...
-          </div>
-        </div>
-
         <div className="border">
           <ul>
             {[...Array(5)].map((_, i) => (
@@ -125,30 +71,6 @@ export const RepositoryList: React.FC<RepositoryListProps> = ({
   if (repositories.length === 0) {
     return (
       <div className="space-y-4">
-        {/* Filter Controls */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <ArrowUpDown className="h-4 w-4 text-muted-foreground" />
-            <span className="text-sm font-medium">Sort by:</span>
-            <Select value={sortBy} onValueChange={(value: SortOption) => setSortBy(value)}>
-              <SelectTrigger className="w-40">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="name">Name</SelectItem>
-                <SelectItem value="lastUpdated">Last Updated</SelectItem>
-                <SelectItem value="size">Repository Size</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="text-xs text-muted-foreground">
-            {filteredAndSortedRepositories.length} repositories
-            {searchQuery && repositories.length !== filteredAndSortedRepositories.length && (
-              <span> (filtered from {repositories.length})</span>
-            )}
-          </div>
-        </div>
-
         <div className="border">
           <div className="flex items-center justify-center w-full p-8 text-sm text-muted-foreground">
             <div className="text-center">
@@ -162,74 +84,12 @@ export const RepositoryList: React.FC<RepositoryListProps> = ({
     );
   }
 
-  // If there are repositories but none match the search
-  if (filteredAndSortedRepositories.length === 0 && searchQuery) {
-    return (
-      <div className="space-y-4">
-        {/* Filter Controls */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <ArrowUpDown className="h-4 w-4 text-muted-foreground" />
-            <span className="text-sm font-medium">Sort by:</span>
-            <Select value={sortBy} onValueChange={(value: SortOption) => setSortBy(value)}>
-              <SelectTrigger className="w-40">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="name">Name</SelectItem>
-                <SelectItem value="lastUpdated">Last Updated</SelectItem>
-                <SelectItem value="size">Repository Size</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="text-xs text-muted-foreground">
-            0 repositories (filtered from {repositories.length})
-          </div>
-        </div>
 
-        <div className="border">
-          <div className="flex items-center justify-center w-full p-8 text-sm text-muted-foreground">
-            <div className="text-center">
-              <Search className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
-              <div>No repositories match "{searchQuery}"</div>
-              <div className="text-xs mt-1">Try adjusting your search or clear the filter</div>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
 
   return (
-    <div className="space-y-4">
-      {/* Filter Controls */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <ArrowUpDown className="h-4 w-4 text-muted-foreground" />
-          <span className="text-sm font-medium">Sort by:</span>
-          <Select value={sortBy} onValueChange={(value: SortOption) => setSortBy(value)}>
-            <SelectTrigger className="w-40">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="name">Name</SelectItem>
-              <SelectItem value="lastUpdated">Last Updated</SelectItem>
-              <SelectItem value="size">Repository Size</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="text-xs text-muted-foreground">
-          {filteredAndSortedRepositories.length} repositories
-          {searchQuery && repositories.length !== filteredAndSortedRepositories.length && (
-            <span> (filtered from {repositories.length})</span>
-          )}
-        </div>
-      </div>
-
-      {/* Repository List */}
-      <div className="border">
-        <ul>
-          {filteredAndSortedRepositories.map((repo) => {
+    <div className="border">
+      <ul>
+        {repositories.map((repo) => {
           const topFileTypes = getTopFileTypes(repo.file_types);
           
           return (
@@ -319,7 +179,6 @@ export const RepositoryList: React.FC<RepositoryListProps> = ({
           );
         })}
         </ul>
-      </div>
     </div>
   );
 };
