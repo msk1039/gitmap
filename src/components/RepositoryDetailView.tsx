@@ -1,14 +1,16 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { GitRepository, DirectoryListing } from '../types/repository';
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { RepositoryFileList } from './RepositoryFileList';
 import { ReadmeRenderer } from './ReadmeRenderer';
 import { 
   GitBranch, 
   ExternalLink, 
   RefreshCw,
-  FolderOpen
+  FolderOpen,
+  Trash2
 } from "lucide-react";
 
 interface RepositoryDetailProps {
@@ -17,6 +19,7 @@ interface RepositoryDetailProps {
   onOpenInVSCode: (repoPath: string) => void;
   onOpenInFileManager?: (repoPath: string) => void;
   onRefresh: (repoPath: string) => void;
+  onDeleteRepository?: (repoPath: string) => Promise<void>;
   isLoading?: boolean;
 }
 
@@ -26,8 +29,10 @@ export const RepositoryDetail: React.FC<RepositoryDetailProps> = ({
   onOpenInVSCode,
   onOpenInFileManager,
   onRefresh,
+  onDeleteRepository,
   isLoading = false
 }) => {
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   return (
     <div className="p-4 mx-auto md:max-w-7xl w-full flex flex-col gap-4">
       {/* Repository name and controls row */}
@@ -47,7 +52,7 @@ export const RepositoryDetail: React.FC<RepositoryDetailProps> = ({
             <Button
               onClick={() => onOpenInVSCode(repository.path)}
               size="sm"
-              className="gap-2"
+              className="gap-2 hover:cursor-pointer"
             >
               <ExternalLink className="h-4 w-4" />
               Open in VS Code
@@ -57,7 +62,7 @@ export const RepositoryDetail: React.FC<RepositoryDetailProps> = ({
                 onClick={() => onOpenInFileManager(repository.path)}
                 variant="outline"
                 size="sm"
-                className="gap-2"
+                className="gap-2 hover:cursor-pointer"
               >
                 <FolderOpen className="h-4 w-4" />
                 Open in Files
@@ -67,11 +72,22 @@ export const RepositoryDetail: React.FC<RepositoryDetailProps> = ({
               onClick={() => onRefresh(repository.path)}
               variant="outline"
               size="sm"
-              className="gap-2"
+              className="gap-2 hover:cursor-pointer"
             >
               <RefreshCw className="h-4 w-4" />
               Refresh
             </Button>
+            {onDeleteRepository && (
+              <Button
+                onClick={() => setDeleteDialogOpen(true)}
+                variant="destructive"
+                size="sm"
+                className="gap-2 hover:cursor-pointer"
+              >
+                <Trash2 className="h-4 w-4" />
+                Delete Forever
+              </Button>
+            )}
           </div>
         </div>
       </div>
@@ -187,6 +203,47 @@ export const RepositoryDetail: React.FC<RepositoryDetailProps> = ({
           )}
         </div>
       </div>
+
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>⚠️ Permanently Delete Repository</AlertDialogTitle>
+            <AlertDialogDescription>
+              <div className="space-y-2">
+                <p className="font-semibold text-destructive">
+                  This will permanently delete the entire repository "{repository.name}" from your file system.
+                </p>
+                <p>
+                  <strong>Path:</strong> {repository.path}
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  This action cannot be undone. All files, commit history, and branches will be lost forever.
+                </p>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-white hover:bg-destructive/90"
+              onClick={async () => {
+                if (onDeleteRepository) {
+                  try {
+                    await onDeleteRepository(repository.path);
+                    // The RepositoryPage component will handle navigation after successful deletion
+                  } catch (err) {
+                    console.error('Failed to delete repository:', err);
+                    // Show user-friendly error message
+                    alert(`Failed to delete repository: ${err}`);
+                  }
+                }
+              }}
+            >
+              Yes, Delete Forever
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

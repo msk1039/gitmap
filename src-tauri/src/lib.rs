@@ -323,6 +323,53 @@ async fn get_scan_paths(_state: State<'_, AppState>) -> Result<Vec<repo_types::S
     scanner.get_scan_paths()
 }
 
+#[command]
+async fn delete_repository(repo_path: String, state: State<'_, AppState>) -> Result<(), String> {
+    use std::fs;
+    
+    let path = Path::new(&repo_path);
+    
+    // Safety checks
+    if !path.exists() {
+        return Err(format!("Repository path does not exist: {}", repo_path));
+    }
+    
+    if !path.is_dir() {
+        return Err(format!("Repository path is not a directory: {}", repo_path));
+    }
+    
+    // Verify it's actually a git repository by checking for .git directory
+    let git_dir = path.join(".git");
+    if !git_dir.exists() {
+        return Err(format!("Not a valid Git repository (no .git directory found): {}", repo_path));
+    }
+    
+    let temp_scanner = GitScanner::new()?;
+    
+    // Remove from cache first
+    temp_scanner.remove_repository_from_cache(&repo_path)?;
+    
+    // Delete the entire repository directory from the file system
+    match fs::remove_dir_all(&repo_path) {
+        Ok(_) => {
+            println!("Successfully deleted repository directory: {}", repo_path);
+        }
+        Err(e) => {
+            // If we fail to delete the directory, we should re-add it to cache
+            // since the repository still exists on disk
+            return Err(format!("Failed to delete repository directory: {}. The repository has been kept in the cache.", e));
+        }
+    }
+    
+    // Update the state by removing the repository from the list
+    {
+        let mut scanner = state.scanner.lock().map_err(|_| "Failed to lock scanner state")?;
+        scanner.repos.retain(|repo| repo.path != repo_path);
+    }
+    
+    Ok(())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     match GitScanner::new() {
@@ -351,7 +398,8 @@ pub fn run() {
                     refresh_cache,
                     add_scan_path,
                     remove_scan_path,
-                    get_scan_paths
+                    get_scan_paths,
+                    delete_repository
                 ])
                 .run(tauri::generate_context!())
                 .expect("error while running tauri application");

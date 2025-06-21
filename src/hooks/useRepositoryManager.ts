@@ -164,6 +164,17 @@ export const useRepositoryManager = () => {
     }
   }, []);
 
+  const deleteRepository = useCallback(async (repoPath: string) => {
+    try {
+      await invoke('delete_repository', { repoPath });
+      setRepositories(prev => prev.filter(repo => repo.path !== repoPath));
+      await loadCacheInfo();
+    } catch (err) {
+      setError(err as string);
+      throw err; // Re-throw to allow component to handle
+    }
+  }, [loadCacheInfo]);
+
   // Listen for scan progress updates
   useEffect(() => {
     const unlistenProgress = listen<ScanProgress>('scan-progress', (event: any) => {
@@ -194,5 +205,6 @@ export const useRepositoryManager = () => {
     addScanPath,
     removeScanPath,
     getScanPaths,
+    deleteRepository,
   };
 };

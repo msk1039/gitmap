@@ -327,6 +327,13 @@ impl GitScanner {
         self.data_store.cleanup_invalid_repositories()
     }
 
+    pub fn remove_repository_from_cache(&self, repo_path: &str) -> Result<(), String> {
+        let mut cache = self.data_store.load_cache()?;
+        cache.repositories.remove(repo_path);
+        cache.last_updated = Utc::now();
+        self.data_store.save_cache(&cache)
+    }
+
     fn get_directory_size(&self, path: &Path) -> Result<f64, String> {
         let mut total_size = 0u64;
 

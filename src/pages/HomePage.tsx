@@ -27,7 +27,6 @@ export const HomePage: React.FC = () => {
     refreshCache,
     openInVSCode,
     openInFileManager,
-    refreshRepository,
   } = useRepositoryManager();
 
   const filteredAndSortedRepositories = useMemo(() => {
@@ -78,7 +77,7 @@ export const HomePage: React.FC = () => {
   return (
     <div className="h-full grow flex flex-col font-mono">
       {/* Header */}
-      <header className="border-b">
+      <header className="border-b fixed top-0 left-0 right-0 z-10 bg-background">
         <div className="flex h-12 items-center justify-between">
           <div className="flex justify-center items-center gap-2 w-32 border-r h-full">
             <GitBranchIcon className="h-4 w-4 text-primary" />
@@ -102,7 +101,7 @@ export const HomePage: React.FC = () => {
         </div>
       </header>
 
-      <div className="flex min-h-[calc(100vh-3rem)] w-full items-stretch">
+      <div className="flex min-h-[calc(100vh-3rem)] w-full items-stretch mt-12">
         <aside className="md:w-32 w-4 border-r"></aside>
         
         <main className="h-full grow flex flex-col">
@@ -126,20 +125,20 @@ export const HomePage: React.FC = () => {
                   <ArrowUpDown className="h-4 w-4 text-muted-foreground" />
                   <span className="text-sm font-medium">Sort by:</span>
                   <Select value={sortBy} onValueChange={(value: SortOption) => setSortBy(value)}>
-                    <SelectTrigger className="w-40">
+                    <SelectTrigger className="w-40 h-10 hover:cursor-pointer rounded-sm">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="name">Name</SelectItem>
                       <SelectItem value="lastUpdated">Last Updated</SelectItem>
-                      <SelectItem value="size">Repository Size</SelectItem>
+                      <SelectItem value="size">folder Size</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
 
 
 
-                <div className="flex max-w-md border-r border-b lg:border-b-0">
+                <div className="flex border-r border-b lg:border-b-0 w-full">
                   <div className='h-full w-10 flex items-center justify-center'>
 
                   <Search className="transform h-4 w-4 text-muted-foreground" />
@@ -221,7 +220,6 @@ export const HomePage: React.FC = () => {
                 onRepositoryClick={handleRepositoryClick}
                 onOpenInVSCode={openInVSCode}
                 onOpenInFileManager={openInFileManager}
-                onRefresh={refreshRepository}
                 isLoading={isScanning && !scanProgress}
               />
             </div>

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useParams, useSearchParams, useNavigate, Link } from 'react-router-dom';
 import { invoke } from '@tauri-apps/api/core';
 import { GitRepository, DirectoryListing } from '../types/repository';
@@ -11,7 +11,7 @@ export const RepositoryPage: React.FC = () => {
   const { repoName } = useParams<{ repoName: string }>();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const { openInVSCode, openInFileManager, refreshRepository } = useRepositoryManager();
+  const { openInVSCode, openInFileManager, refreshRepository, deleteRepository } = useRepositoryManager();
   
   const [repository, setRepository] = useState<GitRepository | null>(null);
   const [directoryListing, setDirectoryListing] = useState<DirectoryListing | null>(null);
@@ -53,7 +53,7 @@ export const RepositoryPage: React.FC = () => {
     loadRepositoryDetails();
   }, [repoName, repoPath, navigate]);
 
-  const handleRefresh = async (path: string) => {
+  const handleRefresh = useCallback(async (path: string) => {
     try {
       setIsLoading(true);
       
@@ -71,7 +71,18 @@ export const RepositoryPage: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [refreshRepository]);
+
+  const handleDeleteRepository = useCallback(async (repoPath: string) => {
+    try {
+      await deleteRepository(repoPath);
+      // Navigate back to home page after successful deletion
+      navigate('/');
+    } catch (err) {
+      console.error('Failed to delete repository:', err);
+      throw err; // Re-throw so the dialog can handle the error
+    }
+  }, [deleteRepository, navigate]);
 
   if (isLoading) {
     return (
@@ -132,7 +143,7 @@ export const RepositoryPage: React.FC = () => {
     return (
       <div className="h-full grow flex flex-col font-mono">
         {/* Header */}
-        <header className="border-b">
+        <header className="border-b fixed top-0 left-0 right-0 z-10 bg-transparent backdrop-blur-md">
           <div className="flex h-12 items-center justify-between">
             <div className="flex justify-center items-center gap-2 w-32 border-r h-full">
               <Link 
@@ -242,7 +253,7 @@ export const RepositoryPage: React.FC = () => {
   return (
     <div className="h-full grow flex flex-col font-mono">
       {/* Header */}
-      <header className="border-b">
+      <header className="border-b fixed top-0 left-0 right-0 z-10 bg-background">
         <div className="flex h-12 items-center justify-between">
               <Link 
                 to="/"
@@ -289,7 +300,7 @@ export const RepositoryPage: React.FC = () => {
         </div>
       </header>
 
-      <div className="flex min-h-[calc(100vh-3rem)] w-full items-stretch">
+      <div className="flex min-h-[calc(100vh-3rem)] w-full items-stretch mt-12">
         <aside className="w-32 border-r"></aside>
         <main className="h-full grow">
           <RepositoryDetail
@@ -299,6 +310,7 @@ export const RepositoryPage: React.FC = () => {
             onOpenInFileManager={openInFileManager}
             onRefresh={handleRefresh}
             isLoading={isLoading}
+            onDeleteRepository={handleDeleteRepository}
           />
         </main>
         <aside className="w-32 border-l"></aside>

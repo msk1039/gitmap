@@ -229,3 +229,33 @@ button {
     @apply bg-background text-foreground;
   }
 }
+
+/* Toast styling for better visibility */
+[data-sonner-toast] {
+  background: white !important;
+  color: #0f0f0f !important;
+  border: 1px solid #e5e7eb !important;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05) !important;
+}
+
+[data-sonner-toast] [data-title] {
+  color: #0f0f0f !important;
+  font-weight: 500 !important;
+}
+
+[data-sonner-toast] [data-description] {
+  color: #6b7280 !important;
+  font-size: 0.875rem !important;
+}
+
+[data-sonner-toast][data-type="success"] {
+  border: 1px solid #41c599a7 !important;
+}
+
+[data-sonner-toast][data-type="error"] {
+  border-left: 4px solid #ef4444 !important;
+}
+
+[data-sonner-toast][data-type="warning"] {
+  border-left: 4px solid #f59e0b !important;
+}
