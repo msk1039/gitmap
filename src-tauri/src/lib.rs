@@ -305,6 +305,24 @@ async fn refresh_cache(state: State<'_, AppState>) -> Result<Vec<GitRepository>,
     Ok(refreshed_repos)
 }
 
+#[command]
+async fn add_scan_path(path: String, _state: State<'_, AppState>) -> Result<(), String> {
+    let scanner = GitScanner::new()?;
+    scanner.add_scan_path(path)
+}
+
+#[command]
+async fn remove_scan_path(path: String, _state: State<'_, AppState>) -> Result<(), String> {
+    let scanner = GitScanner::new()?;
+    scanner.remove_scan_path(&path)
+}
+
+#[command]
+async fn get_scan_paths(_state: State<'_, AppState>) -> Result<Vec<repo_types::ScanPath>, String> {
+    let scanner = GitScanner::new()?;
+    scanner.get_scan_paths()
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     match GitScanner::new() {
@@ -330,7 +348,10 @@ pub fn run() {
                     read_file_content,
                     open_in_file_manager,
                     scan_custom_paths,
-                    refresh_cache
+                    refresh_cache,
+                    add_scan_path,
+                    remove_scan_path,
+                    get_scan_paths
                 ])
                 .run(tauri::generate_context!())
                 .expect("error while running tauri application");

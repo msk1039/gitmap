@@ -59,17 +59,17 @@ impl GitScanner {
         Ok(repositories)
     }
 
-    async fn validate_cached_repositories(&self, cached_repos: Vec<GitRepository>) -> Vec<GitRepository> {
-        let mut valid_repos = Vec::new();
+    // async fn validate_cached_repositories(&self, cached_repos: Vec<GitRepository>) -> Vec<GitRepository> {
+    //     let mut valid_repos = Vec::new();
         
-        for repo in cached_repos {
-            if Path::new(&repo.path).exists() {
-                valid_repos.push(repo);
-            }
-        }
+    //     for repo in cached_repos {
+    //         if Path::new(&repo.path).exists() {
+    //             valid_repos.push(repo);
+    //         }
+    //     }
         
-        valid_repos
-    }
+    //     valid_repos
+    // }
 
     pub async fn scan_disk(&mut self, window: &Window) -> Result<Vec<GitRepository>, String> {
         self.repos.clear();
@@ -106,23 +106,45 @@ impl GitScanner {
         let mut repos_found = 0;
 
         for path_str in custom_paths {
-            let root_path = PathBuf::from(&path_str);
-            if !root_path.exists() {
-                eprintln!("Warning: Scan path does not exist: {}", path_str);
-                continue;
+            let root_path = Path::new(&path_str);
+            
+            // Update scan path timestamp before scanning
+            if let Err(e) = self.data_store.update_scan_path_last_scanned(&path_str) {
+                eprintln!("Failed to update scan path timestamp: {}", e);
             }
-
-            self.scan_directory(&root_path, window, &mut repos_found).await?;
+            
+            if root_path.exists() && root_path.is_dir() {
+                self.scan_directory(root_path, window, &mut repos_found).await?;
+            }
         }
 
         // Send final progress update
         let _ = window.emit("scan-progress", ScanProgress {
-            current_path: "Scan completed".to_string(),
+            current_path: "Complete".to_string(),
             repos_found,
             completed: true,
         });
 
+        // Save all found repositories to cache
+        for repo in &self.repos {
+            if let Err(e) = self.data_store.add_repository(repo.clone()) {
+                eprintln!("Failed to cache repository {}: {}", repo.path, e);
+            }
+        }
+
         Ok(self.repos.clone())
+    }
+    
+    pub fn add_scan_path(&self, path: String) -> Result<(), String> {
+        self.data_store.add_scan_path(path)
+    }
+    
+    pub fn remove_scan_path(&self, path: &str) -> Result<(), String> {
+        self.data_store.remove_scan_path(path)
+    }
+    
+    pub fn get_scan_paths(&self) -> Result<Vec<crate::repo_types::ScanPath>, String> {
+        self.data_store.get_scan_paths()
     }
 
     async fn scan_directory(&mut self, root_path: &Path, window: &Window, repos_found: &mut u32) -> Result<(), String> {

@@ -1,4 +1,4 @@
-use crate::repo_types::GitRepository;
+use crate::repo_types::{GitRepository, ScanPath};
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use std::fs;
@@ -8,6 +8,7 @@ use std::collections::HashMap;
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct RepositoryCache {
     pub repositories: HashMap<String, GitRepository>,
+    pub scan_paths: HashMap<String, ScanPath>,
     pub last_updated: DateTime<Utc>,
     pub cache_version: String,
 }
@@ -16,8 +17,9 @@ impl Default for RepositoryCache {
     fn default() -> Self {
         Self {
             repositories: HashMap::new(),
+            scan_paths: HashMap::new(),
             last_updated: Utc::now(),
-            cache_version: "1.0".to_string(),
+            cache_version: "1.1".to_string(),
         }
     }
 }
@@ -83,16 +85,19 @@ impl DataStore {
         self.save_cache(&cache)
     }
     
-    pub fn remove_repository(&self, repo_path: &str) -> Result<(), String> {
-        let mut cache = self.load_cache()?;
-        cache.repositories.remove(repo_path);
-        cache.last_updated = Utc::now();
-        self.save_cache(&cache)
-    }
+
+    //      already handled in functions with simple for loop. 
+    //
+    // pub fn remove_repository(&self, repo_path: &str) -> Result<(), String> {
+    //     let mut cache = self.load_cache()?;
+    //     cache.repositories.remove(repo_path);
+    //     cache.last_updated = Utc::now();
+    //     self.save_cache(&cache)
+    // }
     
-    pub fn update_repository(&self, repo: GitRepository) -> Result<(), String> {
-        self.add_repository(repo) // Same as add since we use HashMap
-    }
+    // pub fn update_repository(&self, repo: GitRepository) -> Result<(), String> {
+    //     self.add_repository(repo)
+    // }
     
     pub fn clear_cache(&self) -> Result<(), String> {
         let cache = RepositoryCache::default();
@@ -151,5 +156,54 @@ impl DataStore {
         }
         
         Ok(removed_count)
+    }
+    
+    pub fn add_scan_path(&self, path: String) -> Result<(), String> {
+        let mut cache = self.load_cache()?;
+        
+        // Count repositories in this path
+        let repository_count = cache.repositories
+            .values()
+            .filter(|repo| repo.path.starts_with(&path))
+            .count();
+        
+        let scan_path = ScanPath {
+            path: path.clone(),
+            last_scanned: Some(Utc::now()),
+            repository_count,
+        };
+        
+        cache.scan_paths.insert(path, scan_path);
+        cache.last_updated = Utc::now();
+        self.save_cache(&cache)
+    }
+    
+    pub fn remove_scan_path(&self, path: &str) -> Result<(), String> {
+        let mut cache = self.load_cache()?;
+        cache.scan_paths.remove(path);
+        cache.last_updated = Utc::now();
+        self.save_cache(&cache)
+    }
+    
+    pub fn update_scan_path_last_scanned(&self, path: &str) -> Result<(), String> {
+        let mut cache = self.load_cache()?;
+        
+        if let Some(scan_path) = cache.scan_paths.get_mut(path) {
+            scan_path.last_scanned = Some(Utc::now());
+            
+            // Update repository count
+            scan_path.repository_count = cache.repositories
+                .values()
+                .filter(|repo| repo.path.starts_with(path))
+                .count();
+        }
+        
+        cache.last_updated = Utc::now();
+        self.save_cache(&cache)
+    }
+    
+    pub fn get_scan_paths(&self) -> Result<Vec<ScanPath>, String> {
+        let cache = self.load_cache()?;
+        Ok(cache.scan_paths.values().cloned().collect())
     }
 }

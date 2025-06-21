@@ -39,3 +39,10 @@ pub struct DirectoryListing {
     pub path: String,
     pub entries: Vec<FileEntry>,
 }
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct ScanPath {
+    pub path: String,
+    pub last_scanned: Option<DateTime<Utc>>,
+    pub repository_count: usize,
+}

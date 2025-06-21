@@ -81,7 +81,7 @@ export const RepositoryPage: React.FC = () => {
           <div className="flex h-12 items-center justify-between">
             <div className="flex justify-center items-center gap-2 w-32 border-r h-full">
               <GitBranchIcon className="h-4 w-4 text-primary" />
-              <span className="text-sm font-medium">gitmanager</span>
+              <span className="text-sm font-medium">gitlocal</span>
             </div>
 
             {/* Breadcrumbs */}
@@ -140,7 +140,7 @@ export const RepositoryPage: React.FC = () => {
                 className="text-muted-foreground hover:text-foreground hover:bg-muted-foreground/20 transition-colors"
               >
                 <GitBranchIcon className="h-4 w-4 text-primary" />
-                <span className="text-sm font-medium">gitmanager</span>
+                <span className="text-sm font-medium">gitlocal</span>
 
               </Link>
             </div>
@@ -211,7 +211,7 @@ export const RepositoryPage: React.FC = () => {
           <div className="flex h-12 items-center justify-between">
             <div className="flex justify-center items-center gap-2 w-32 border-r h-full">
               <GitBranchIcon className="h-4 w-4 text-primary" />
-              <span className="text-sm font-medium">gitmanager</span>
+              <span className="text-sm font-medium">gitlocal</span>
             </div>
             <div className="flex items-center w-48 border-l h-12 justify-center">
               <span className="text-xs text-muted-foreground">Not Found</span>
@@ -250,7 +250,7 @@ export const RepositoryPage: React.FC = () => {
               >
           <div className="flex justify-center items-center gap-2 w-32 h-full">
                 <GitBranchIcon className="h-4 w-4 text-primary" />
-                <span className="text-sm font-medium">gitmanager</span>
+                <span className="text-sm font-medium">gitlocal</span>
 
             </div>
               </Link>

@@ -4,7 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Plus, Trash2, Folder, Search, AlertCircle } from "lucide-react";
-import { GitRepository } from '../types/repository';
+import { GitRepository, ScanPath } from '../types/repository';
+import { invoke } from '@tauri-apps/api/core';
 
 interface ScanDirectoryManagerProps {
   isOpen: boolean;
@@ -12,12 +13,6 @@ interface ScanDirectoryManagerProps {
   onStartScan: (selectedPaths: string[]) => void;
   isScanning?: boolean;
   repositories?: GitRepository[]; // Add repositories to update scan stats
-}
-
-interface ScanPath {
-  path: string;
-  lastScanned?: string;
-  repositoryCount?: number;
 }
 
 export const ScanDirectoryManager: React.FC<ScanDirectoryManagerProps> = ({
@@ -48,8 +43,8 @@ export const ScanDirectoryManager: React.FC<ScanDirectoryManagerProps> = ({
       
       return {
         ...scanPath,
-        repositoryCount: reposInPath.length,
-        lastScanned: lastScannedDates.length > 0 ? lastScannedDates[0] : scanPath.lastScanned
+        repository_count: reposInPath.length,
+        last_scanned: lastScannedDates.length > 0 ? lastScannedDates[0] : scanPath.last_scanned
       };
     });
   };
@@ -61,44 +56,53 @@ export const ScanDirectoryManager: React.FC<ScanDirectoryManagerProps> = ({
     }
   }, [repositories]);
 
-  // Load saved scan paths from localStorage on component mount
+  // Load saved scan paths from backend on component mount
   useEffect(() => {
-    const savedPaths = localStorage.getItem('git-manager-scan-paths');
-    if (savedPaths) {
+    const loadScanPaths = async () => {
       try {
-        const paths = JSON.parse(savedPaths);
-        const pathsWithStats = updateScanPathStatistics(paths);
-        setScanPaths(pathsWithStats);
-        // Select all paths by default
-        setSelectedPaths(new Set(pathsWithStats.map((p: ScanPath) => p.path)));
+        const savedPaths = await invoke<ScanPath[]>('get_scan_paths');
+        if (savedPaths.length > 0) {
+          const pathsWithStats = updateScanPathStatistics(savedPaths);
+          setScanPaths(pathsWithStats);
+          // Select all paths by default
+          setSelectedPaths(new Set(pathsWithStats.map(p => p.path)));
+        } else {
+          setDefaultPaths();
+        }
       } catch (err) {
         console.error('Failed to load saved scan paths:', err);
         // Set default paths if no saved paths
         setDefaultPaths();
       }
-    } else {
-      setDefaultPaths();
-    }
+    };
+    
+    loadScanPaths();
   }, [repositories]); // Add repositories as dependency so it updates when repositories change
 
-  const setDefaultPaths = () => {
+  const setDefaultPaths = async () => {
     const defaultPaths: ScanPath[] = [
-      { path: '/Users', repositoryCount: 0 },
-      { path: '/opt', repositoryCount: 0 },
-      { path: '/usr/local', repositoryCount: 0 },
+      { path: '/Users', repository_count: 0 },
+      { path: '/opt', repository_count: 0 },
+      { path: '/usr/local', repository_count: 0 },
     ];
+    
+    // Add default paths to backend
+    for (const defaultPath of defaultPaths) {
+      try {
+        await invoke('add_scan_path', { path: defaultPath.path });
+      } catch (err) {
+        console.warn(`Failed to add default path ${defaultPath.path}:`, err);
+      }
+    }
     
     const pathsWithStats = updateScanPathStatistics(defaultPaths);
     setScanPaths(pathsWithStats);
     setSelectedPaths(new Set(pathsWithStats.map(p => p.path)));
   };
 
-  // Save scan paths to localStorage whenever they change
-  useEffect(() => {
-    localStorage.setItem('git-manager-scan-paths', JSON.stringify(scanPaths));
-  }, [scanPaths]);
+  // Remove localStorage effect since we're using backend now
 
-  const handleAddPath = () => {
+  const handleAddPath = async () => {
     if (!newPath.trim()) {
       setError('Please enter a valid path');
       return;
@@ -112,26 +116,42 @@ export const ScanDirectoryManager: React.FC<ScanDirectoryManagerProps> = ({
       return;
     }
 
-    const newScanPath: ScanPath = {
-      path: trimmedPath,
-      repositoryCount: 0
-    };
+    try {
+      // Add to backend
+      await invoke('add_scan_path', { path: trimmedPath });
+      
+      // Update local state
+      const newScanPath: ScanPath = {
+        path: trimmedPath,
+        repository_count: 0
+      };
 
-    const updatedPaths = [...scanPaths, newScanPath];
-    const pathsWithStats = updateScanPathStatistics(updatedPaths);
-    setScanPaths(pathsWithStats);
-    setSelectedPaths(prev => new Set([...prev, trimmedPath]));
-    setNewPath('');
-    setError(null);
+      const updatedPaths = [...scanPaths, newScanPath];
+      const pathsWithStats = updateScanPathStatistics(updatedPaths);
+      setScanPaths(pathsWithStats);
+      setSelectedPaths(prev => new Set([...prev, trimmedPath]));
+      setNewPath('');
+      setError(null);
+    } catch (err) {
+      setError(`Failed to add path: ${err}`);
+    }
   };
 
-  const handleRemovePath = (pathToRemove: string) => {
-    setScanPaths(prev => prev.filter(p => p.path !== pathToRemove));
-    setSelectedPaths(prev => {
-      const newSet = new Set(prev);
-      newSet.delete(pathToRemove);
-      return newSet;
-    });
+  const handleRemovePath = async (pathToRemove: string) => {
+    try {
+      // Remove from backend
+      await invoke('remove_scan_path', { path: pathToRemove });
+      
+      // Update local state
+      setScanPaths(prev => prev.filter(p => p.path !== pathToRemove));
+      setSelectedPaths(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(pathToRemove);
+        return newSet;
+      });
+    } catch (err) {
+      setError(`Failed to remove path: ${err}`);
+    }
   };
 
   const handlePathToggle = (path: string) => {
@@ -180,28 +200,40 @@ export const ScanDirectoryManager: React.FC<ScanDirectoryManagerProps> = ({
         </DialogHeader>
 
         <div className="space-y-4">
-          {/* Add New Path Section */}
-          <div className="space-y-2">
+            {/* Add New Path Section */}
+            <div className="space-y-2">
             <h3 className="text-sm font-medium">Add New Scan Path</h3>
             <div className="flex gap-2">
               <Input
-                placeholder="Enter directory path (e.g., /Users/username/Projects)"
-                value={newPath}
-                onChange={(e) => setNewPath(e.target.value)}
-                onKeyPress={handleKeyPress}
-                className="flex-1"
+              placeholder="Enter path to scan"
+              value={newPath}
+              onChange={(e) => setNewPath(e.target.value)}
+              onKeyPress={handleKeyPress}
+              className="flex-1 font-mono"
               />
               <Button onClick={handleAddPath} size="sm">
-                <Plus className="h-4 w-4" />
+              <Plus className="h-4 w-4" />
               </Button>
             </div>
+            <div className="bg-blue-50 border border-blue-200 rounded-md p-3 flex items-start gap-2">
+              <div className="flex items-start gap-2"></div>
+              <AlertCircle className="h-4 w-4 text-blue-600 mt-0.5 flex-shrink-0" />
+              <div className="space-y-1">
+                <p className="text-xs text-blue-800">
+                Use full absolute paths only. Relative paths (~) are not supported.
+                </p>
+                <p className="text-xs text-blue-700">
+                (e.g., /Users/username/Projects or C:\Users\username\Projects)
+                </p>
+              </div>
+              </div>
             {error && (
               <div className="flex items-center gap-2 text-sm text-destructive">
-                <AlertCircle className="h-4 w-4" />
-                {error}
+              <AlertCircle className="h-4 w-4" />
+              {error}
               </div>
             )}
-          </div>
+            </div>
 
           {/* Scan Paths List */}
           <div className="space-y-2">
@@ -258,11 +290,11 @@ export const ScanDirectoryManager: React.FC<ScanDirectoryManagerProps> = ({
                         <div className="flex-1 min-w-0">
                           <div className="font-mono text-sm truncate">{scanPath.path}</div>
                           <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                            {scanPath.lastScanned && (
-                              <span>Last scanned: {new Date(scanPath.lastScanned).toLocaleDateString()}</span>
+                            {scanPath.last_scanned && (
+                              <span>Last scanned: {new Date(scanPath.last_scanned).toLocaleDateString()}</span>
                             )}
                             <Badge variant="secondary" className="text-xs">
-                              {scanPath.repositoryCount || 0} repo{(scanPath.repositoryCount || 0) !== 1 ? 's' : ''} found
+                              {scanPath.repository_count || 0} repo{(scanPath.repository_count || 0) !== 1 ? 's' : ''} found
                             </Badge>
                           </div>
                         </div>
@@ -287,7 +319,7 @@ export const ScanDirectoryManager: React.FC<ScanDirectoryManagerProps> = ({
           </div>
 
           {/* Selected Summary */}
-          {selectedPaths.size > 0 && (
+          {/* {selectedPaths.size > 0 && (
             <div className="bg-muted/50 rounded-lg p-3">
               <div className="text-sm">
                 <span className="font-medium">Selected for scanning:</span> {selectedPaths.size} path{selectedPaths.size !== 1 ? 's' : ''}
@@ -295,11 +327,10 @@ export const ScanDirectoryManager: React.FC<ScanDirectoryManagerProps> = ({
               <div className="text-xs text-muted-foreground mt-1">
                 {Array.from(selectedPaths).join(', ')}
               </div>
-              {/* Show total repositories in selected paths */}
               {(() => {
                 const totalRepos = scanPaths
                   .filter(path => selectedPaths.has(path.path))
-                  .reduce((sum, path) => sum + (path.repositoryCount || 0), 0);
+                  .reduce((sum, path) => sum + (path.repository_count || 0), 0);
                 
                 if (totalRepos > 0) {
                   return (
@@ -313,7 +344,7 @@ export const ScanDirectoryManager: React.FC<ScanDirectoryManagerProps> = ({
                 return null;
               })()}
             </div>
-          )}
+          )} */}
         </div>
 
         <DialogFooter>

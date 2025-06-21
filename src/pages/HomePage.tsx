@@ -51,7 +51,7 @@ export const HomePage: React.FC = () => {
         <div className="flex h-12 items-center justify-between">
           <div className="flex justify-center items-center gap-2 w-32 border-r h-full">
             <GitBranchIcon className="h-4 w-4 text-primary" />
-            <span className="text-sm font-medium">gitmanager</span>
+            <span className="text-sm font-medium">gitlocal</span>
           </div>
           
           <div className="flex items-center gap-2 px-4">

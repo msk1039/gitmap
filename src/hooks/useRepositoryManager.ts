@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
-import { GitRepository, ScanProgress, CacheInfo } from '../types/repository';
+import { GitRepository, ScanProgress, CacheInfo, ScanPath } from '../types/repository';
 
 export const useRepositoryManager = () => {
   const [repositories, setRepositories] = useState<GitRepository[]>([]);
@@ -135,6 +135,35 @@ export const useRepositoryManager = () => {
     }
   }, [loadCacheInfo]);
 
+  const addScanPath = useCallback(async (path: string) => {
+    try {
+      await invoke('add_scan_path', { path });
+      await loadCacheInfo(); // Update cache info after adding
+    } catch (err) {
+      console.error('Failed to add scan path:', err);
+      throw err;
+    }
+  }, [loadCacheInfo]);
+
+  const removeScanPath = useCallback(async (path: string) => {
+    try {
+      await invoke('remove_scan_path', { path });
+      await loadCacheInfo(); // Update cache info after removing
+    } catch (err) {
+      console.error('Failed to remove scan path:', err);
+      throw err;
+    }
+  }, [loadCacheInfo]);
+
+  const getScanPaths = useCallback(async () => {
+    try {
+      return await invoke<ScanPath[]>('get_scan_paths');
+    } catch (err) {
+      console.error('Failed to get scan paths:', err);
+      throw err;
+    }
+  }, []);
+
   // Listen for scan progress updates
   useEffect(() => {
     const unlistenProgress = listen<ScanProgress>('scan-progress', (event: any) => {
@@ -162,5 +191,8 @@ export const useRepositoryManager = () => {
     loadCacheInfo,
     openInFileManager,
     refreshCache,
+    addScanPath,
+    removeScanPath,
+    getScanPaths,
   };
 };

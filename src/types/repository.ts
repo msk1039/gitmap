@@ -32,6 +32,12 @@ export interface ScanProgress {
   completed: boolean;
 }
 
+export interface ScanPath {
+  path: string;
+  last_scanned?: string;
+  repository_count: number;
+}
+
 export interface CacheInfo {
   total_repositories: number;
   last_updated: string;
