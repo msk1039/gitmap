@@ -48,15 +48,26 @@ impl GitScanner {
             }
         }
 
+        // Load existing cache to preserve pin states
+        let existing_cache = self.data_store.load_cache().unwrap_or_default();
+
         // Perform full scan
-        let repositories = self.scan_disk(window).await?;
+        let new_repositories = self.scan_disk(window).await?;
         
-        // Save to cache
-        for repo in &repositories {
-            self.data_store.add_repository(repo.clone())?;
+        // Merge new repositories with existing ones, preserving pin states
+        for mut new_repo in new_repositories {
+            if let Some(existing_repo) = existing_cache.repositories.get(&new_repo.path) {
+                // Preserve pin state from existing repository
+                new_repo.is_pinned = existing_repo.is_pinned;
+                new_repo.pinned_at = existing_repo.pinned_at;
+            }
+            
+            // Save to cache
+            self.data_store.add_repository(new_repo)?;
         }
         
-        Ok(repositories)
+        // Return all repositories (reload from cache to get complete list)
+        self.load_cached_repositories().await
     }
 
     // async fn validate_cached_repositories(&self, cached_repos: Vec<GitRepository>) -> Vec<GitRepository> {
@@ -102,6 +113,9 @@ impl GitScanner {
     }
 
     pub async fn scan_custom_paths(&mut self, window: &Window, custom_paths: Vec<String>) -> Result<Vec<GitRepository>, String> {
+        // Load existing cache to preserve pin states
+        let existing_cache = self.data_store.load_cache().unwrap_or_default();
+        
         self.repos.clear();
         let mut repos_found = 0;
 
@@ -125,6 +139,15 @@ impl GitScanner {
             completed: true,
         });
 
+        // Merge new repositories with existing ones, preserving pin states
+        for mut new_repo in &mut self.repos {
+            if let Some(existing_repo) = existing_cache.repositories.get(&new_repo.path) {
+                // Preserve pin state from existing repository
+                new_repo.is_pinned = existing_repo.is_pinned;
+                new_repo.pinned_at = existing_repo.pinned_at;
+            }
+        }
+
         // Save all found repositories to cache
         for repo in &self.repos {
             if let Err(e) = self.data_store.add_repository(repo.clone()) {
@@ -132,7 +155,8 @@ impl GitScanner {
             }
         }
 
-        Ok(self.repos.clone())
+        // Return all repositories (reload from cache to get complete list)
+        self.load_cached_repositories().await
     }
     
     pub fn add_scan_path(&self, path: String) -> Result<(), String> {
