@@ -4,7 +4,11 @@ Never lose track of your Git repositories again. gitfinder scans your entire dis
 
 
 
-https://github.com/user-attachments/assets/3c0a3aa8-e43e-4988-b3af-475a11940bfb
+
+
+https://github.com/user-attachments/assets/32746ca4-4295-482f-9bf6-875130fe4a64
+
+
 
 
 
