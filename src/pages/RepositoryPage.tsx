@@ -4,6 +4,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { GitRepository, DirectoryListing } from '../types/repository';
 import { RepositoryDetail } from '../components/RepositoryDetailView';
 import { useRepositoryManager } from '../hooks/useRepositoryManager';
+import { Navigation } from '../components/Navigation';
 import { GitBranchIcon } from "lucide-react";
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from '@/components/ui/breadcrumb';
 
@@ -252,55 +253,36 @@ export const RepositoryPage: React.FC = () => {
 
   return (
     <div className="h-full grow flex flex-col font-mono">
-      {/* Header */}
-      <header className="border-b fixed top-0 left-0 right-0 z-10 bg-background">
-        <div className="flex h-12 items-center justify-between">
-              <Link 
-                to="/"
-                className="flex justify-center text-muted-foreground hover:text-foreground hover:bg-muted-foreground/20 transition-colors w-32 border-r h-full"
-              >
-          <div className="flex justify-center items-center gap-2 w-32 h-full">
-                <GitBranchIcon className="h-4 w-4 text-primary" />
-                <span className="text-sm font-medium">gitlocal</span>
+      {/* Navigation */}
+      <Navigation repositoryCount={0} />
 
-            </div>
-              </Link>
-
-          {/* Breadcrumbs */}
-          <div className="flex items-center flex-1 px-4">
-            <Breadcrumb>
-              <BreadcrumbList>
-                <BreadcrumbItem>
-                  <BreadcrumbLink asChild>
-                    <Link 
-                      to="/"
-                      className="text-muted-foreground hover:text-foreground transition-colors"
-                    >
-                      Home
-                    </Link>
-                  </BreadcrumbLink>
-                </BreadcrumbItem>
-                <BreadcrumbSeparator />
-                <BreadcrumbItem>
-                  <BreadcrumbPage className="font-medium">
-                    {repository?.name || repoName}
-                  </BreadcrumbPage>
-                </BreadcrumbItem>
-              </BreadcrumbList>
-            </Breadcrumb>
-          </div>
-
-
-
-          <div className="flex items-center w-32 border-l h-12 justify-center">
-            <span className="text-xs text-muted-foreground truncate px-2">
-              {repository.name}
-            </span>
-          </div>
+      {/* Repository-specific breadcrumbs */}
+      <div className="border-b bg-background">
+        <div className="mx-auto max-w-7xl px-6 py-2">
+          <Breadcrumb>
+            <BreadcrumbList>
+              <BreadcrumbItem>
+                <BreadcrumbLink asChild>
+                  <Link 
+                    to="/"
+                    className="text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    Home
+                  </Link>
+                </BreadcrumbLink>
+              </BreadcrumbItem>
+              <BreadcrumbSeparator />
+              <BreadcrumbItem>
+                <BreadcrumbPage className="font-medium">
+                  {repository?.name || repoName}
+                </BreadcrumbPage>
+              </BreadcrumbItem>
+            </BreadcrumbList>
+          </Breadcrumb>
         </div>
-      </header>
+      </div>
 
-      <div className="flex min-h-[calc(100vh-3rem)] w-full items-stretch mt-12">
+      <div className="flex min-h-[calc(100vh-6rem)] w-full items-stretch">
         <aside className="w-32 border-r"></aside>
         <main className="h-full grow">
           <RepositoryDetail

@@ -5,12 +5,11 @@ import { GitRepository } from '../types/repository';
 import { RepositoryList } from '../components/RepositoryList';
 import { ScanProgress } from '../components/ScanProgress';
 import { ScanDirectoryManager } from '../components/ScanDirectoryManager';
+import { Navigation } from '../components/Navigation';
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { GitBranchIcon, Search, RefreshCw, ArrowUpDown } from "lucide-react";
-
+import { Search, RefreshCw, ArrowUpDown } from "lucide-react";
 type SortOption = 'name' | 'lastUpdated' | 'size';
 
 export const HomePage: React.FC = () => {
@@ -105,36 +104,14 @@ export const HomePage: React.FC = () => {
 
   return (
     <div className="h-full grow flex flex-col font-mono">
-      {/* Header */}
-      <header className="border-b fixed top-0 left-0 right-0 z-10 bg-background">
-        <div className="flex h-12 items-center justify-between">
-          <div className="flex justify-center items-center gap-2 w-32 border-r h-full">
-            <GitBranchIcon className="h-4 w-4 text-primary" />
-            <span className="text-sm font-medium">gitlocal</span>
-          </div>
-          
-          <div className="flex items-center gap-2 px-4">
-            <Badge variant="secondary" className="text-xs">
-              Local
-            </Badge>
-            <span className="text-xs text-muted-foreground">
-              {repositories.length} repositories found
-            </span>
-          </div>
-
-          <div className="flex items-center w-32 border-l h-12 justify-center">
-            <span className="text-xs text-muted-foreground">
-              Home
-            </span>
-          </div>
-        </div>
-      </header>
+      {/* Navigation */}
+      <Navigation repositoryCount={repositories.length} />
 
       <div className="flex min-h-[calc(100vh-3rem)] w-full items-stretch mt-12">
         <aside className="md:w-32 w-4 border-r"></aside>
         
         <main className="h-full grow flex flex-col">
-          <div className="mx-auto md:max-w-7xl w-full flex flex-col">
+          <div className="mx-auto md:max-w-4xl w-full flex flex-col">
             {/* Title and Controls Section */}
             <div className="flex flex-col gap-4">
               <div className="">
@@ -211,7 +188,7 @@ export const HomePage: React.FC = () => {
                     )}
                     {isScanning ? 'Scanning...' : 'Scan Repositories'}
                   </Button>
-                  <Button
+                  {/* <Button
                     onClick={refreshCache}
                     disabled={isScanning}
                     variant="outline"
@@ -220,7 +197,7 @@ export const HomePage: React.FC = () => {
                   >
                     <RefreshCw className="h-4 w-4" />
                     Refresh Cache
-                  </Button>
+                  </Button> */}
                 </div>
               </div>
                 
