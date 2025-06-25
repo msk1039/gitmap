@@ -1,6 +1,7 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useRepositoryManager } from '../hooks/useRepositoryManager';
+import { GitRepository } from '../types/repository';
 import { RepositoryList } from '../components/RepositoryList';
 import { ScanProgress } from '../components/ScanProgress';
 import { ScanDirectoryManager } from '../components/ScanDirectoryManager';
@@ -27,9 +28,19 @@ export const HomePage: React.FC = () => {
     refreshCache,
     openInVSCode,
     openInFileManager,
+    togglePin,
+    loadCachedRepositories,
   } = useRepositoryManager();
 
+  // Refresh repositories when component mounts
+  useEffect(() => {
+    console.log('HomePage mounted, loading repositories...'); // Debug log
+    loadCachedRepositories();
+  }, [loadCachedRepositories]);
+
   const filteredAndSortedRepositories = useMemo(() => {
+    console.log('Filtering and sorting repositories. Total:', repositories.length); // Debug log
+    
     // First filter by search query
     const filtered = searchQuery.trim() 
       ? repositories.filter(repo => 
@@ -37,23 +48,41 @@ export const HomePage: React.FC = () => {
         )
       : repositories;
     
-    // Then sort the filtered results
-    const sorted = [...filtered];
+    console.log('After filtering:', filtered.length, 'repositories'); // Debug log
     
-    switch (sortBy) {
-      case 'name':
-        return sorted.sort((a, b) => a.name.localeCompare(b.name));
-      case 'lastUpdated':
-        return sorted.sort((a, b) => {
+    // Separate pinned and unpinned repositories
+    const pinnedRepos = filtered.filter(repo => repo.is_pinned);
+    const unpinnedRepos = filtered.filter(repo => !repo.is_pinned);
+    
+    console.log('Pinned repos:', pinnedRepos.length, 'Unpinned repos:', unpinnedRepos.length); // Debug log
+    
+    // Sort each group separately
+    const sortPinnedRepos = [...pinnedRepos];
+    const sortUnpinnedRepos = [...unpinnedRepos];
+    
+    const sortFunction = (a: GitRepository, b: GitRepository) => {
+      switch (sortBy) {
+        case 'name':
+          return a.name.localeCompare(b.name);
+        case 'lastUpdated':
           const dateA = a.last_commit_date ? new Date(a.last_commit_date).getTime() : 0;
           const dateB = b.last_commit_date ? new Date(b.last_commit_date).getTime() : 0;
           return dateB - dateA; // Most recent first
-        });
-      case 'size':
-        return sorted.sort((a, b) => b.size_mb - a.size_mb); // Largest first
-      default:
-        return sorted;
-    }
+        case 'size':
+          return b.size_mb - a.size_mb; // Largest first
+        default:
+          return 0;
+      }
+    };
+    
+    sortPinnedRepos.sort(sortFunction);
+    sortUnpinnedRepos.sort(sortFunction);
+    
+    // Combine pinned repos first, then unpinned repos
+    const result = [...sortPinnedRepos, ...sortUnpinnedRepos];
+    console.log('Final sorted result:', result.length, 'repositories'); // Debug log
+    
+    return result;
   }, [repositories, sortBy, searchQuery]);
 
   const handleRepositoryClick = (repoPath: string, repoName: string) => {
@@ -220,6 +249,7 @@ export const HomePage: React.FC = () => {
                 onRepositoryClick={handleRepositoryClick}
                 onOpenInVSCode={openInVSCode}
                 onOpenInFileManager={openInFileManager}
+                onTogglePin={togglePin}
                 isLoading={isScanning && !scanProgress}
               />
             </div>

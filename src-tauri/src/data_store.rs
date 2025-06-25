@@ -11,6 +11,7 @@ pub struct RepositoryCache {
     pub scan_paths: HashMap<String, ScanPath>,
     pub last_updated: DateTime<Utc>,
     pub cache_version: String,
+    pub pinned_order: Vec<String>, // Track order of pinned repos by path
 }
 
 impl Default for RepositoryCache {
@@ -19,7 +20,8 @@ impl Default for RepositoryCache {
             repositories: HashMap::new(),
             scan_paths: HashMap::new(),
             last_updated: Utc::now(),
-            cache_version: "1.1".to_string(),
+            cache_version: "1.2".to_string(), // Updated version for pin feature
+            pinned_order: Vec::new(),
         }
     }
 }
@@ -62,10 +64,78 @@ impl DataStore {
         let content = fs::read_to_string(&self.cache_file_path)
             .map_err(|e| format!("Failed to read cache file: {}", e))?;
         
-        let cache: RepositoryCache = serde_json::from_str(&content)
-            .map_err(|e| format!("Failed to parse cache file: {}", e))?;
+        // Try to parse as the new format first
+        match serde_json::from_str::<RepositoryCache>(&content) {
+            Ok(cache) => Ok(cache),
+            Err(_) => {
+                // If parsing fails, try to migrate from old format
+                self.migrate_cache_format(&content)
+            }
+        }
+    }
+    
+    fn migrate_cache_format(&self, content: &str) -> Result<RepositoryCache, String> {
+        // Define old cache format for migration
+        #[derive(Deserialize)]
+        struct OldRepositoryCache {
+            repositories: HashMap<String, OldGitRepository>,
+            scan_paths: HashMap<String, ScanPath>,
+            last_updated: DateTime<Utc>,
+            cache_version: String,
+        }
         
-        Ok(cache)
+        #[derive(Deserialize)]
+        struct OldGitRepository {
+            name: String,
+            path: String,
+            size_mb: f64,
+            file_types: HashMap<String, u32>,
+            last_commit_date: Option<DateTime<Utc>>,
+            current_branch: Option<String>,
+            branches: Vec<String>,
+            remote_url: Option<String>,
+            commit_count: u32,
+            last_analyzed: DateTime<Utc>,
+            is_valid: bool,
+        }
+        
+        // Try to parse as old format
+        let old_cache: OldRepositoryCache = serde_json::from_str(content)
+            .map_err(|e| format!("Failed to parse cache file (old format): {}", e))?;
+        
+        // Migrate to new format
+        let mut new_repositories = HashMap::new();
+        for (path, old_repo) in old_cache.repositories {
+            let new_repo = GitRepository {
+                name: old_repo.name,
+                path: old_repo.path,
+                size_mb: old_repo.size_mb,
+                file_types: old_repo.file_types,
+                last_commit_date: old_repo.last_commit_date,
+                current_branch: old_repo.current_branch,
+                branches: old_repo.branches,
+                remote_url: old_repo.remote_url,
+                commit_count: old_repo.commit_count,
+                last_analyzed: old_repo.last_analyzed,
+                is_valid: old_repo.is_valid,
+                is_pinned: false, // Default to unpinned
+                pinned_at: None,
+            };
+            new_repositories.insert(path, new_repo);
+        }
+        
+        let migrated_cache = RepositoryCache {
+            repositories: new_repositories,
+            scan_paths: old_cache.scan_paths,
+            last_updated: old_cache.last_updated,
+            cache_version: "1.2".to_string(), // Update to new version
+            pinned_order: Vec::new(), // Empty pinned order
+        };
+        
+        // Save the migrated cache
+        self.save_cache(&migrated_cache)?;
+        
+        Ok(migrated_cache)
     }
     
     pub fn save_cache(&self, cache: &RepositoryCache) -> Result<(), String> {
@@ -205,5 +275,68 @@ impl DataStore {
     pub fn get_scan_paths(&self) -> Result<Vec<ScanPath>, String> {
         let cache = self.load_cache()?;
         Ok(cache.scan_paths.values().cloned().collect())
+    }
+    
+    // Pin-related methods
+    pub fn toggle_repository_pin(&self, repo_path: &str) -> Result<GitRepository, String> {
+        let mut cache = self.load_cache()?;
+        
+        if let Some(repo) = cache.repositories.get_mut(repo_path) {
+            repo.is_pinned = !repo.is_pinned;
+            
+            if repo.is_pinned {
+                repo.pinned_at = Some(Utc::now());
+                // Add to pinned order if not already there
+                if !cache.pinned_order.contains(&repo_path.to_string()) {
+                    cache.pinned_order.push(repo_path.to_string());
+                }
+            } else {
+                repo.pinned_at = None;
+                // Remove from pinned order
+                cache.pinned_order.retain(|path| path != repo_path);
+            }
+            
+            let updated_repo = repo.clone(); // Clone before saving
+            cache.last_updated = Utc::now();
+            self.save_cache(&cache)?;
+            Ok(updated_repo)
+        } else {
+            Err(format!("Repository not found: {}", repo_path))
+        }
+    }
+    
+    pub fn get_pinned_repositories(&self) -> Result<Vec<GitRepository>, String> {
+        let cache = self.load_cache()?;
+        let mut pinned_repos = Vec::new();
+        
+        // Return repositories in the order they were pinned
+        for repo_path in &cache.pinned_order {
+            if let Some(repo) = cache.repositories.get(repo_path) {
+                if repo.is_pinned {
+                    pinned_repos.push(repo.clone());
+                }
+            }
+        }
+        
+        Ok(pinned_repos)
+    }
+    
+    pub fn reorder_pinned_repositories(&self, ordered_paths: Vec<String>) -> Result<(), String> {
+        let mut cache = self.load_cache()?;
+        
+        // Validate that all paths in ordered_paths are actually pinned
+        for path in &ordered_paths {
+            if let Some(repo) = cache.repositories.get(path) {
+                if !repo.is_pinned {
+                    return Err(format!("Repository is not pinned: {}", path));
+                }
+            } else {
+                return Err(format!("Repository not found: {}", path));
+            }
+        }
+        
+        cache.pinned_order = ordered_paths;
+        cache.last_updated = Utc::now();
+        self.save_cache(&cache)
     }
 }

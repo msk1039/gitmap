@@ -16,6 +16,8 @@ pub struct GitRepository {
     // Persistence metadata
     pub last_analyzed: DateTime<Utc>,
     pub is_valid: bool, // Whether the repository still exists and is accessible
+    pub is_pinned: bool, // Whether the repository is pinned
+    pub pinned_at: Option<DateTime<Utc>>, // When it was pinned
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]

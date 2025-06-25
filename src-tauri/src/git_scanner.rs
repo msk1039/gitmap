@@ -10,7 +10,7 @@ use std::fs;
 
 pub struct GitScanner {
     pub repos: Vec<GitRepository>,
-    data_store: DataStore,
+    pub data_store: DataStore,
 }
 
 impl GitScanner {
@@ -246,6 +246,8 @@ impl GitScanner {
             commit_count,
             last_analyzed: Utc::now(),
             is_valid: true,
+            is_pinned: false, // Default to unpinned for new repositories
+            pinned_at: None,
         })
     }
 

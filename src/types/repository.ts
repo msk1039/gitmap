@@ -24,6 +24,8 @@ export interface GitRepository {
   // Persistence metadata
   last_analyzed: string;
   is_valid: boolean;
+  is_pinned: boolean;
+  pinned_at?: string;
 }
 
 export interface ScanProgress {

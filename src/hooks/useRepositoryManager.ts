@@ -18,7 +18,10 @@ export const useRepositoryManager = () => {
 
   const loadCachedRepositories = useCallback(async () => {
     try {
+      console.log('Loading cached repositories...'); // Debug log
       const cachedRepos = await invoke<GitRepository[]>('load_cached_repositories');
+      console.log('Loaded repositories:', cachedRepos.length, 'repos'); // Debug log
+      console.log('Pinned repos:', cachedRepos.filter(r => r.is_pinned).length); // Debug log
       setRepositories(cachedRepos);
     } catch (err) {
       console.warn('Failed to load cached repositories:', err);
@@ -167,6 +170,7 @@ export const useRepositoryManager = () => {
   const deleteRepository = useCallback(async (repoPath: string) => {
     try {
       await invoke('delete_repository', { repoPath });
+      // Remove from local state immediately for better UX
       setRepositories(prev => prev.filter(repo => repo.path !== repoPath));
       await loadCacheInfo();
     } catch (err) {
@@ -174,6 +178,50 @@ export const useRepositoryManager = () => {
       throw err; // Re-throw to allow component to handle
     }
   }, [loadCacheInfo]);
+
+  // Pin-related methods
+  const togglePin = useCallback(async (repoPath: string) => {
+    try {
+      console.log('Toggling pin for repository:', repoPath); // Debug log
+      const updatedRepo = await invoke<GitRepository>('toggle_repository_pin', { repoPath });
+      console.log('Pin toggled successfully. New state:', updatedRepo.is_pinned); // Debug log
+      
+      // Update the repository in local state
+      setRepositories(prev => {
+        const updated = prev.map(repo => 
+          repo.path === repoPath ? updatedRepo : repo
+        );
+        console.log('Updated repositories state. Pinned count:', updated.filter(r => r.is_pinned).length); // Debug log
+        return updated;
+      });
+      
+      await loadCacheInfo();
+    } catch (err) {
+      console.error('Failed to toggle pin:', err); // Debug log
+      setError(err as string);
+      throw err;
+    }
+  }, [loadCacheInfo]);
+
+  const getPinnedRepositories = useCallback(async () => {
+    try {
+      const pinnedRepos = await invoke<GitRepository[]>('get_pinned_repositories');
+      return pinnedRepos;
+    } catch (err) {
+      setError(err as string);
+      throw err;
+    }
+  }, []);
+
+  const reorderPinnedRepositories = useCallback(async (orderedPaths: string[]) => {
+    try {
+      await invoke('reorder_pinned_repositories', { orderedPaths });
+      await loadCachedRepositories(); // Reload to get updated order
+    } catch (err) {
+      setError(err as string);
+      throw err;
+    }
+  }, [loadCachedRepositories]);
 
   // Listen for scan progress updates
   useEffect(() => {
@@ -185,6 +233,20 @@ export const useRepositoryManager = () => {
       unlistenProgress.then((fn: any) => fn());
     };
   }, []);
+
+  // Listen for window focus to reload repositories when returning to the app
+  useEffect(() => {
+    const handleFocus = () => {
+      console.log('Window focused, reloading repositories...'); // Debug log
+      loadCachedRepositories();
+    };
+
+    window.addEventListener('focus', handleFocus);
+    
+    return () => {
+      window.removeEventListener('focus', handleFocus);
+    };
+  }, [loadCachedRepositories]);
 
   return {
     repositories,
@@ -206,5 +268,8 @@ export const useRepositoryManager = () => {
     removeScanPath,
     getScanPaths,
     deleteRepository,
+    togglePin,
+    getPinnedRepositories,
+    reorderPinnedRepositories,
   };
 };
