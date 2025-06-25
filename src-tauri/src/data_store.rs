@@ -11,7 +11,6 @@ pub struct RepositoryCache {
     pub scan_paths: HashMap<String, ScanPath>,
     pub last_updated: DateTime<Utc>,
     pub cache_version: String,
-    pub pinned_order: Vec<String>, // Track order of pinned repos by path
 }
 
 impl Default for RepositoryCache {
@@ -20,8 +19,7 @@ impl Default for RepositoryCache {
             repositories: HashMap::new(),
             scan_paths: HashMap::new(),
             last_updated: Utc::now(),
-            cache_version: "1.2".to_string(), // Updated version for pin feature
-            pinned_order: Vec::new(),
+            cache_version: "1.3".to_string(), // Updated version for simplified pin feature
         }
     }
 }
@@ -128,8 +126,7 @@ impl DataStore {
             repositories: new_repositories,
             scan_paths: old_cache.scan_paths,
             last_updated: old_cache.last_updated,
-            cache_version: "1.2".to_string(), // Update to new version
-            pinned_order: Vec::new(), // Empty pinned order
+            cache_version: "1.3".to_string(), // Update to new version
         };
         
         // Save the migrated cache
@@ -286,14 +283,8 @@ impl DataStore {
             
             if repo.is_pinned {
                 repo.pinned_at = Some(Utc::now());
-                // Add to pinned order if not already there
-                if !cache.pinned_order.contains(&repo_path.to_string()) {
-                    cache.pinned_order.push(repo_path.to_string());
-                }
             } else {
                 repo.pinned_at = None;
-                // Remove from pinned order
-                cache.pinned_order.retain(|path| path != repo_path);
             }
             
             let updated_repo = repo.clone(); // Clone before saving
@@ -307,36 +298,12 @@ impl DataStore {
     
     pub fn get_pinned_repositories(&self) -> Result<Vec<GitRepository>, String> {
         let cache = self.load_cache()?;
-        let mut pinned_repos = Vec::new();
-        
-        // Return repositories in the order they were pinned
-        for repo_path in &cache.pinned_order {
-            if let Some(repo) = cache.repositories.get(repo_path) {
-                if repo.is_pinned {
-                    pinned_repos.push(repo.clone());
-                }
-            }
-        }
+        let pinned_repos: Vec<GitRepository> = cache.repositories
+            .values()
+            .filter(|repo| repo.is_pinned)
+            .cloned()
+            .collect();
         
         Ok(pinned_repos)
-    }
-    
-    pub fn reorder_pinned_repositories(&self, ordered_paths: Vec<String>) -> Result<(), String> {
-        let mut cache = self.load_cache()?;
-        
-        // Validate that all paths in ordered_paths are actually pinned
-        for path in &ordered_paths {
-            if let Some(repo) = cache.repositories.get(path) {
-                if !repo.is_pinned {
-                    return Err(format!("Repository is not pinned: {}", path));
-                }
-            } else {
-                return Err(format!("Repository not found: {}", path));
-            }
-        }
-        
-        cache.pinned_order = ordered_paths;
-        cache.last_updated = Utc::now();
-        self.save_cache(&cache)
     }
 }

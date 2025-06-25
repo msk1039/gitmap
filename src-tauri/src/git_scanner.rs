@@ -252,7 +252,17 @@ impl GitScanner {
     }
 
     pub fn refresh_repository(&mut self, repo_path: &str) -> Result<GitRepository, String> {
-        let updated_repo = self.analyze_repository(Path::new(repo_path))?;
+        // Get existing repository to preserve pin state
+        let cache = self.data_store.load_cache()?;
+        let existing_repo = cache.repositories.get(repo_path);
+        
+        let mut updated_repo = self.analyze_repository(Path::new(repo_path))?;
+        
+        // Preserve pin state from existing repository
+        if let Some(existing) = existing_repo {
+            updated_repo.is_pinned = existing.is_pinned;
+            updated_repo.pinned_at = existing.pinned_at;
+        }
         
         // Update in cache
         self.data_store.add_repository(updated_repo.clone())?;
@@ -279,7 +289,11 @@ impl GitScanner {
             if repo_path.exists() && repo_path.join(".git").exists() {
                 // Repository exists, refresh its data
                 match self.analyze_repository(repo_path) {
-                    Ok(updated_repo) => {
+                    Ok(mut updated_repo) => {
+                        // Preserve pin state from existing repository
+                        updated_repo.is_pinned = repo.is_pinned;
+                        updated_repo.pinned_at = repo.pinned_at;
+                        
                         updated_repos.push(updated_repo.clone());
                         repos_to_update.push((path.clone(), updated_repo));
                     }

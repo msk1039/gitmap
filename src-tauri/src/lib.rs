@@ -344,13 +344,6 @@ async fn get_pinned_repositories(_state: State<'_, AppState>) -> Result<Vec<GitR
     data_store.get_pinned_repositories()
 }
 
-#[command]
-async fn reorder_pinned_repositories(ordered_paths: Vec<String>, _state: State<'_, AppState>) -> Result<(), String> {
-    let scanner = GitScanner::new()?;
-    let data_store = scanner.data_store;
-    data_store.reorder_pinned_repositories(ordered_paths)
-}
-
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     match GitScanner::new() {
@@ -382,8 +375,7 @@ pub fn run() {
                     get_scan_paths,
                     delete_repository,
                     toggle_repository_pin,
-                    get_pinned_repositories,
-                    reorder_pinned_repositories
+                    get_pinned_repositories
                 ])
                 .run(tauri::generate_context!())
                 .expect("error while running tauri application");

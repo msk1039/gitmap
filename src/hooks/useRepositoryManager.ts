@@ -21,7 +21,17 @@ export const useRepositoryManager = () => {
       console.log('Loading cached repositories...'); // Debug log
       const cachedRepos = await invoke<GitRepository[]>('load_cached_repositories');
       console.log('Loaded repositories:', cachedRepos.length, 'repos'); // Debug log
-      console.log('Pinned repos:', cachedRepos.filter(r => r.is_pinned).length); // Debug log
+      console.log('Pinned repos count:', cachedRepos.filter(r => r.is_pinned).length); // Debug log
+      
+      // Debug: Log all pinned repositories
+      const pinnedRepos = cachedRepos.filter(r => r.is_pinned);
+      console.log('All pinned repositories:', pinnedRepos.map(r => ({ 
+        name: r.name, 
+        path: r.path, 
+        is_pinned: r.is_pinned, 
+        pinned_at: r.pinned_at 
+      })));
+      
       setRepositories(cachedRepos);
     } catch (err) {
       console.warn('Failed to load cached repositories:', err);
@@ -186,22 +196,15 @@ export const useRepositoryManager = () => {
       const updatedRepo = await invoke<GitRepository>('toggle_repository_pin', { repoPath });
       console.log('Pin toggled successfully. New state:', updatedRepo.is_pinned); // Debug log
       
-      // Update the repository in local state
-      setRepositories(prev => {
-        const updated = prev.map(repo => 
-          repo.path === repoPath ? updatedRepo : repo
-        );
-        console.log('Updated repositories state. Pinned count:', updated.filter(r => r.is_pinned).length); // Debug log
-        return updated;
-      });
-      
+      // Instead of updating local state, reload all repositories to get proper order
+      await loadCachedRepositories();
       await loadCacheInfo();
     } catch (err) {
       console.error('Failed to toggle pin:', err); // Debug log
       setError(err as string);
       throw err;
     }
-  }, [loadCacheInfo]);
+  }, [loadCachedRepositories, loadCacheInfo]);
 
   const getPinnedRepositories = useCallback(async () => {
     try {
@@ -212,16 +215,6 @@ export const useRepositoryManager = () => {
       throw err;
     }
   }, []);
-
-  const reorderPinnedRepositories = useCallback(async (orderedPaths: string[]) => {
-    try {
-      await invoke('reorder_pinned_repositories', { orderedPaths });
-      await loadCachedRepositories(); // Reload to get updated order
-    } catch (err) {
-      setError(err as string);
-      throw err;
-    }
-  }, [loadCachedRepositories]);
 
   // Listen for scan progress updates
   useEffect(() => {
@@ -270,6 +263,5 @@ export const useRepositoryManager = () => {
     deleteRepository,
     togglePin,
     getPinnedRepositories,
-    reorderPinnedRepositories,
   };
 };
