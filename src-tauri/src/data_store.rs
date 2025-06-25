@@ -1,4 +1,4 @@
-use crate::repo_types::{GitRepository, ScanPath};
+use crate::repo_types::{GitRepository, ScanPath, Collection};
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use std::fs;
@@ -9,6 +9,7 @@ use std::collections::HashMap;
 pub struct RepositoryCache {
     pub repositories: HashMap<String, GitRepository>,
     pub scan_paths: HashMap<String, ScanPath>,
+    pub collections: HashMap<String, Collection>,
     pub last_updated: DateTime<Utc>,
     pub cache_version: String,
 }
@@ -18,8 +19,9 @@ impl Default for RepositoryCache {
         Self {
             repositories: HashMap::new(),
             scan_paths: HashMap::new(),
+            collections: HashMap::new(),
             last_updated: Utc::now(),
-            cache_version: "1.3".to_string(), // Updated version for simplified pin feature
+            cache_version: "1.4".to_string(), // Updated version for collections feature
         }
     }
 }
@@ -125,8 +127,9 @@ impl DataStore {
         let migrated_cache = RepositoryCache {
             repositories: new_repositories,
             scan_paths: old_cache.scan_paths,
+            collections: HashMap::new(), // Initialize empty collections
             last_updated: old_cache.last_updated,
-            cache_version: "1.3".to_string(), // Update to new version
+            cache_version: "1.4".to_string(), // Update to new version with collections
         };
         
         // Save the migrated cache
@@ -305,5 +308,93 @@ impl DataStore {
             .collect();
         
         Ok(pinned_repos)
+    }
+    
+    // Collection-related methods
+    pub fn create_collection(&self, name: String) -> Result<Collection, String> {
+        let mut cache = self.load_cache()?;
+        
+        // Check if collection name already exists
+        if cache.collections.values().any(|c| c.name == name) {
+            return Err(format!("Collection with name '{}' already exists", name));
+        }
+        
+        let collection_id = uuid::Uuid::new_v4().to_string();
+        let collection = Collection {
+            id: collection_id.clone(),
+            name,
+            repository_paths: Vec::new(),
+            created_at: Utc::now(),
+        };
+        
+        cache.collections.insert(collection_id, collection.clone());
+        cache.last_updated = Utc::now();
+        self.save_cache(&cache)?;
+        
+        Ok(collection)
+    }
+    
+    pub fn get_collections(&self) -> Result<Vec<Collection>, String> {
+        let cache = self.load_cache()?;
+        Ok(cache.collections.values().cloned().collect())
+    }
+    
+    pub fn add_repository_to_collection(&self, collection_id: &str, repo_path: &str) -> Result<(), String> {
+        let mut cache = self.load_cache()?;
+        
+        // Check if repository exists
+        if !cache.repositories.contains_key(repo_path) {
+            return Err(format!("Repository not found: {}", repo_path));
+        }
+        
+        if let Some(collection) = cache.collections.get_mut(collection_id) {
+            if !collection.repository_paths.contains(&repo_path.to_string()) {
+                collection.repository_paths.push(repo_path.to_string());
+            }
+        } else {
+            return Err(format!("Collection not found: {}", collection_id));
+        }
+        
+        cache.last_updated = Utc::now();
+        self.save_cache(&cache)
+    }
+    
+    pub fn remove_repository_from_collection(&self, collection_id: &str, repo_path: &str) -> Result<(), String> {
+        let mut cache = self.load_cache()?;
+        
+        if let Some(collection) = cache.collections.get_mut(collection_id) {
+            collection.repository_paths.retain(|path| path != repo_path);
+        } else {
+            return Err(format!("Collection not found: {}", collection_id));
+        }
+        
+        cache.last_updated = Utc::now();
+        self.save_cache(&cache)
+    }
+    
+    pub fn delete_collection(&self, collection_id: &str) -> Result<(), String> {
+        let mut cache = self.load_cache()?;
+        
+        if cache.collections.remove(collection_id).is_none() {
+            return Err(format!("Collection not found: {}", collection_id));
+        }
+        
+        cache.last_updated = Utc::now();
+        self.save_cache(&cache)
+    }
+    
+    pub fn get_repositories_in_collection(&self, collection_id: &str) -> Result<Vec<GitRepository>, String> {
+        let cache = self.load_cache()?;
+        
+        if let Some(collection) = cache.collections.get(collection_id) {
+            let repos: Vec<GitRepository> = collection.repository_paths
+                .iter()
+                .filter_map(|path| cache.repositories.get(path))
+                .cloned()
+                .collect();
+            Ok(repos)
+        } else {
+            Err(format!("Collection not found: {}", collection_id))
+        }
     }
 }

@@ -1,8 +1,10 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { GitRepository } from '../types/repository';
 import { Button } from "@/components/ui/button";
 import { Toggle } from "@/components/ui/toggle";
-import { GitBranch, ExternalLink, Folder, FolderOpen, Pin } from "lucide-react";
+import { CollectionAssignmentDialog } from './CollectionAssignmentDialog';
+import { CollectionBadges } from './CollectionBadges';
+import { GitBranch, ExternalLink, Folder, FolderOpen, Pin, Tags } from "lucide-react";
 import { toast } from "sonner";
 
 interface RepositoryListProps {
@@ -22,6 +24,8 @@ export const RepositoryList: React.FC<RepositoryListProps> = ({
   onTogglePin,
   isLoading = false
 }) => {
+  const [collectionDialogOpen, setCollectionDialogOpen] = useState(false);
+  const [selectedRepository, setSelectedRepository] = useState<GitRepository | null>(null);
 
   // Debug logging
   console.log('RepositoryList rendered with:', repositories.length, 'repositories');
@@ -146,6 +150,11 @@ export const RepositoryList: React.FC<RepositoryListProps> = ({
                 <span className='text-sky-700'>{formatSize(repo.size_mb)}</span>
                 {topFileTypes && <span>{topFileTypes}</span>}
               </div>
+              
+              {/* Collection badges */}
+              <div className="mt-2">
+                <CollectionBadges repositoryPath={repo.path} />
+              </div>
             </div>
             
             <div className="flex flex-col items-end min-w-32 shrink-0">
@@ -166,6 +175,19 @@ export const RepositoryList: React.FC<RepositoryListProps> = ({
                 >
                   <Pin className="h-3 w-3" />
                 </Toggle>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-6 px-2 text-xs opacity-0 group-hover:opacity-100 transition-opacity text-black"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setSelectedRepository(repo);
+                    setCollectionDialogOpen(true);
+                  }}
+                >
+                  <Tags className="h-3 w-3 mr-1" />
+                  Collections
+                </Button>
                 <Button
                   size="sm"
                   variant="outline"
@@ -206,39 +228,58 @@ export const RepositoryList: React.FC<RepositoryListProps> = ({
   };
 
   return (
-    <div className="space-y-4">
-      {/* Pinned Repositories Section */}
-      {pinnedRepositories.length > 0 && (
-        <div className="border">
-          <div className="bg-amber-50 border-b px-4 py-2">
-            <div className="flex items-center gap-2">
-              <Pin className="h-4 w-4 text-amber-600" fill="currentColor" />
-              <h2 className="text-sm font-medium text-amber-800">
-                Pinned Repositories ({pinnedRepositories.length})
-              </h2>
+    <>
+      <div className="space-y-4">
+        {/* Pinned Repositories Section */}
+        {pinnedRepositories.length > 0 && (
+          <div className="border">
+            <div className="bg-amber-50 border-b px-4 py-2">
+              <div className="flex items-center gap-2">
+                <Pin className="h-4 w-4 text-amber-600" fill="currentColor" />
+                <h2 className="text-sm font-medium text-amber-800">
+                  Pinned Repositories ({pinnedRepositories.length})
+                </h2>
+              </div>
             </div>
+            <ul className='p-2 inset-ring-4 inset-ring-amber-50'>
+              {pinnedRepositories.map(renderRepository)}
+            </ul>
           </div>
-          <ul>
-            {pinnedRepositories.map(renderRepository)}
-          </ul>
-        </div>
-      )}
+        )}
+        
+        {/* Regular Repositories Section */}
+        {unpinnedRepositories.length > 0 && (
+          <div className="border">
+            {pinnedRepositories.length > 0 && (
+              <div className="bg-muted/50 border-b px-4 py-2">
+                <h2 className="text-sm font-medium text-muted-foreground">
+                  All Repositories ({unpinnedRepositories.length})
+                </h2>
+              </div>
+            )}
+            <ul>
+              {unpinnedRepositories.map(renderRepository)}
+            </ul>
+          </div>
+        )}
+      </div>
       
-      {/* Regular Repositories Section */}
-      {unpinnedRepositories.length > 0 && (
-        <div className="border">
-          {pinnedRepositories.length > 0 && (
-            <div className="bg-muted/50 border-b px-4 py-2">
-              <h2 className="text-sm font-medium text-muted-foreground">
-                All Repositories ({unpinnedRepositories.length})
-              </h2>
-            </div>
-          )}
-          <ul>
-            {unpinnedRepositories.map(renderRepository)}
-          </ul>
-        </div>
+      {/* Collection Assignment Dialog */}
+      {selectedRepository && (
+        <CollectionAssignmentDialog
+          isOpen={collectionDialogOpen}
+          onClose={() => {
+            setCollectionDialogOpen(false);
+            setSelectedRepository(null);
+          }}
+          repositoryPath={selectedRepository.path}
+          repositoryName={selectedRepository.name}
+          onCollectionChange={() => {
+            // Refresh the collection badges by re-rendering
+            // The CollectionBadges component will automatically update
+          }}
+        />
       )}
-    </div>
+    </>
   );
 };

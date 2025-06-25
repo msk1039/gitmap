@@ -6,10 +6,12 @@ import { RepositoryList } from '../components/RepositoryList';
 import { ScanProgress } from '../components/ScanProgress';
 import { ScanDirectoryManager } from '../components/ScanDirectoryManager';
 import { Navigation } from '../components/Navigation';
+import { CollectionsSidebar } from '../components/CollectionsSidebar';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Search, RefreshCw, ArrowUpDown } from "lucide-react";
+import { invoke } from '@tauri-apps/api/core';
 type SortOption = 'name' | 'lastUpdated' | 'size';
 
 export const HomePage: React.FC = () => {
@@ -17,6 +19,8 @@ export const HomePage: React.FC = () => {
   const [showScanDialog, setShowScanDialog] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState<SortOption>('name');
+  const [selectedCollection, setSelectedCollection] = useState<string>('all');
+  const [collectionRepositories, setCollectionRepositories] = useState<GitRepository[]>([]);
   
   const {
     repositories,
@@ -40,12 +44,20 @@ export const HomePage: React.FC = () => {
   const filteredAndSortedRepositories = useMemo(() => {
     console.log('Filtering and sorting repositories. Total:', repositories.length); // Debug log
     
-    // First filter by search query
+    // First filter by collection
+    let collectionFiltered = repositories;
+    if (selectedCollection !== 'all' && collectionRepositories.length > 0) {
+      // Filter repositories to only those in the selected collection
+      const collectionPaths = new Set(collectionRepositories.map(repo => repo.path));
+      collectionFiltered = repositories.filter(repo => collectionPaths.has(repo.path));
+    }
+    
+    // Then filter by search query
     const filtered = searchQuery.trim() 
-      ? repositories.filter(repo => 
+      ? collectionFiltered.filter(repo => 
           repo.name.toLowerCase().includes(searchQuery.toLowerCase())
         )
-      : repositories;
+      : collectionFiltered;
     
     console.log('After filtering:', filtered.length, 'repositories'); // Debug log
     
@@ -82,7 +94,26 @@ export const HomePage: React.FC = () => {
     console.log('Final pinned repos in result:', result.filter(r => r.is_pinned).map(r => r.name)); // Debug log
     
     return result;
-  }, [repositories, sortBy, searchQuery]);
+  }, [repositories, sortBy, searchQuery, selectedCollection, collectionRepositories]);
+
+  const handleCollectionChange = async (collectionId: string) => {
+    setSelectedCollection(collectionId);
+    
+    // If it's not "all", load the repositories in this collection
+    if (collectionId !== 'all') {
+      try {
+        const collectionRepos = await invoke<GitRepository[]>('get_repositories_in_collection', {
+          collectionId
+        });
+        setCollectionRepositories(collectionRepos);
+      } catch (error) {
+        console.error('Failed to load collection repositories:', error);
+        setCollectionRepositories([]);
+      }
+    } else {
+      setCollectionRepositories([]);
+    }
+  };
 
   const handleRepositoryClick = (repoPath: string, repoName: string) => {
     // Navigate to the repository detail page
@@ -107,14 +138,33 @@ export const HomePage: React.FC = () => {
       {/* Navigation */}
       <Navigation repositoryCount={repositories.length} />
 
-      <div className="flex min-h-[calc(100vh-3rem)] w-full items-stretch mt-12">
+      <div className="flex min-h-[calc(100vh-3rem)] w-full items-stretch">
+        {/* Collections Sidebar */}
         <aside className="md:w-32 w-4 border-r"></aside>
         
         <main className="h-full grow flex flex-col">
-          <div className="mx-auto md:max-w-4xl w-full flex flex-col">
+          <div className="grid grid-cols-5 gap-4 w-full flex flex-col">
+
+            <div className='col-span-1 w-full h-screen border-r flex flex-col items-center justify-center sticky top-0 bg-background'>
+              {/* collections list sidebar */}
+              <div className='flex flex-col items-center justify-center px-4 border-t border-b py-4'>
+              <h2 className='text-lg font-semibold mb-4'>Collections</h2>
+              <p className='text-sm text-muted-foreground'>Manage your collections of repositories</p>
+              
+
+              {/* render the collection list here */}
+              <CollectionsSidebar 
+                selectedCollection={selectedCollection}
+                onCollectionChange={handleCollectionChange}
+              />
+
+
+              </div>
+            </div>
             {/* Title and Controls Section */}
+            <div className='col-span-3 w-full flex flex-col p-6'>
             <div className="flex flex-col gap-4">
-              <div className="">
+              <div className="pt-12">
                 <div className='my-5'>
                   <h1 className="text-2xl font-bold">Local Repositories</h1>
                   <p className="text-sm text-muted-foreground">
@@ -229,6 +279,9 @@ export const HomePage: React.FC = () => {
                 onTogglePin={togglePin}
                 isLoading={isScanning && !scanProgress}
               />
+            </div></div>
+      <div className='col-span-1 w-full border-l h-full flex flex-col'>
+
             </div>
           </div>
         </main>

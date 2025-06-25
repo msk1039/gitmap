@@ -344,6 +344,60 @@ async fn get_pinned_repositories(_state: State<'_, AppState>) -> Result<Vec<GitR
     data_store.get_pinned_repositories()
 }
 
+// Collection-related commands
+#[command]
+async fn create_collection(name: String, _state: State<'_, AppState>) -> Result<repo_types::Collection, String> {
+    let scanner = GitScanner::new()?;
+    let data_store = scanner.data_store;
+    data_store.create_collection(name)
+}
+
+#[command]
+async fn get_collections(_state: State<'_, AppState>) -> Result<Vec<repo_types::Collection>, String> {
+    let scanner = GitScanner::new()?;
+    let data_store = scanner.data_store;
+    data_store.get_collections()
+}
+
+#[command]
+async fn add_repository_to_collection(
+    collection_id: String,
+    repo_path: String,
+    _state: State<'_, AppState>
+) -> Result<(), String> {
+    let scanner = GitScanner::new()?;
+    let data_store = scanner.data_store;
+    data_store.add_repository_to_collection(&collection_id, &repo_path)
+}
+
+#[command]
+async fn remove_repository_from_collection(
+    collection_id: String,
+    repo_path: String,
+    _state: State<'_, AppState>
+) -> Result<(), String> {
+    let scanner = GitScanner::new()?;
+    let data_store = scanner.data_store;
+    data_store.remove_repository_from_collection(&collection_id, &repo_path)
+}
+
+#[command]
+async fn delete_collection(collection_id: String, _state: State<'_, AppState>) -> Result<(), String> {
+    let scanner = GitScanner::new()?;
+    let data_store = scanner.data_store;
+    data_store.delete_collection(&collection_id)
+}
+
+#[command]
+async fn get_repositories_in_collection(
+    collection_id: String,
+    _state: State<'_, AppState>
+) -> Result<Vec<GitRepository>, String> {
+    let scanner = GitScanner::new()?;
+    let data_store = scanner.data_store;
+    data_store.get_repositories_in_collection(&collection_id)
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     match GitScanner::new() {
@@ -375,7 +429,13 @@ pub fn run() {
                     get_scan_paths,
                     delete_repository,
                     toggle_repository_pin,
-                    get_pinned_repositories
+                    get_pinned_repositories,
+                    create_collection,
+                    get_collections,
+                    add_repository_to_collection,
+                    remove_repository_from_collection,
+                    delete_collection,
+                    get_repositories_in_collection
                 ])
                 .run(tauri::generate_context!())
                 .expect("error while running tauri application");

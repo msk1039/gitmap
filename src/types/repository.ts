@@ -48,6 +48,13 @@ export interface CacheInfo {
   invalid_repositories: number;
 }
 
+export interface Collection {
+  id: string;
+  name: string;
+  repository_paths: string[];
+  created_at: string;
+}
+
 export interface AppState {
   repositories: GitRepository[];
   selectedRepo: GitRepository | null;
