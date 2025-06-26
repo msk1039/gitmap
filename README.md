@@ -1,6 +1,6 @@
-# gitfinder - Local Git Repository Manager
+# gitmap - Local Git Repository Manager
 
-Never lose track of your Git repositories again. gitfinder scans your entire disk, finds all your Git repositories, and gives you instant access to open them in VS Code or your file manager. No more hunting through folders.
+Never lose track of your Git repositories again. gitmap scans your entire disk, finds all your Git repositories, and gives you instant access to open them in VS Code or your file manager. No more hunting through folders.
 
 
 
@@ -52,7 +52,7 @@ Find any repository instantly with powerful search functionality. Filter by repo
 #### 1. Clone the Repository
 ```bash
 git clone <repository-url>
-cd gitfinder
+cd gitmap
 ```
 
 #### 2. Install Dependencies

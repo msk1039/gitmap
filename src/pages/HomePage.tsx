@@ -68,10 +68,7 @@ export const HomePage: React.FC = () => {
     
     console.log('Pinned repos:', pinnedRepos.length, 'Unpinned repos:', unpinnedRepos.length); // Debug log
     
-    // For pinned repositories, preserve the order from the backend (don't sort)
-    // Only sort unpinned repositories
-    const sortUnpinnedRepos = [...unpinnedRepos];
-    
+    // Apply sorting to both pinned and unpinned repositories
     const sortFunction = (a: GitRepository, b: GitRepository) => {
       switch (sortBy) {
         case 'name':
@@ -87,10 +84,12 @@ export const HomePage: React.FC = () => {
       }
     };
     
-    sortUnpinnedRepos.sort(sortFunction);
+    // Sort both pinned and unpinned repositories
+    const sortedPinnedRepos = [...pinnedRepos].sort(sortFunction);
+    const sortedUnpinnedRepos = [...unpinnedRepos].sort(sortFunction);
     
-    // Combine pinned repos first (in their original order), then sorted unpinned repos
-    const result = [...pinnedRepos, ...sortUnpinnedRepos];
+    // Combine sorted pinned repos first, then sorted unpinned repos
+    const result = [...sortedPinnedRepos, ...sortedUnpinnedRepos];
     console.log('Final sorted result:', result.length, 'repositories'); // Debug log
     console.log('Final pinned repos in result:', result.filter(r => r.is_pinned).map(r => r.name)); // Debug log
     
