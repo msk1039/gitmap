@@ -132,7 +132,7 @@ export const CollectionAssignmentDialog: React.FC<CollectionAssignmentDialogProp
                 {collections.map((collection) => (
                   <div 
                     key={collection.id} 
-                    className="flex items-center space-x-2 cursor-pointer hover:bg-muted/50 rounded p-2 -m-2"
+                    className="flex items-center space-x-2 cursor-pointer hover:bg-muted/50 px-2 justify-center rounded-md border"
                     onClick={() => handleCollectionToggle(collection.id)}
                   >
                     <input
@@ -143,9 +143,13 @@ export const CollectionAssignmentDialog: React.FC<CollectionAssignmentDialogProp
                       disabled={isSaving}
                       className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary pointer-events-none"
                     />
+                    <span 
+                    className="inline-block w-3 h-3 rounded-full mr-2" 
+                    style={{ backgroundColor: collection.color }}
+                  ></span>
                     <label
                       htmlFor={`dialog-${collection.id}`}
-                      className="text-sm font-medium cursor-pointer flex-1 pointer-events-none"
+                      className="text-md font-medium cursor-pointer flex-1 pointer-events-none h-10 flex items-center justify-start"
                     >
                       {collection.name}
                       <span className="text-xs text-muted-foreground ml-2">

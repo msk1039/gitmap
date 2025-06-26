@@ -335,13 +335,13 @@ export const RepositoryList: React.FC<RepositoryListProps> = ({
         {/* Regular Repositories Section */}
         {unpinnedRepositories.length > 0 && (
           <div className="bg-muted/50 inset-shadow-sm inset-shadow-gray-300 pb-2">
-            {pinnedRepositories.length > 0 && (
+
               <div className="bg-muted/50 px-4 py-2 inset-shadow-sm inset-shadow-gray-300">
                 <h2 className="text-sm font-medium text-muted-foreground">
                   All Repositories ({unpinnedRepositories.length})
                 </h2>
               </div>
-            )}
+
             <ul className='mx-2 border-1 rounded-xl bg-transparent shadow-sm overflow-hidden'>
               {unpinnedRepositories.map(renderRepository)}
             </ul>
