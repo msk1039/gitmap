@@ -60,14 +60,14 @@ export const Navigation: React.FC<NavigationProps> = ({ repositoryCount = 0 }) =
         </div>
 
         {/* Status/Info */}
-        <div className="flex items-center gap-2 px-4">
+        {/* <div className="flex items-center gap-2 px-4">
           <Badge variant="secondary" className="text-xs">
             Local
           </Badge>
           <span className="text-xs text-muted-foreground">
             {repositoryCount} repositories found
           </span>
-        </div>
+        </div> */}
 
         {/* Right side space */}
         <div className="flex items-center w-32 border-l h-12 justify-center">

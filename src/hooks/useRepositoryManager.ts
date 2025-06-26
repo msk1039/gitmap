@@ -93,6 +93,24 @@ export const useRepositoryManager = () => {
     }
   }, [loadCacheInfo]);
 
+  const getCacheFilePath = useCallback(async (): Promise<string> => {
+    try {
+      return await invoke<string>('get_cache_file_path');
+    } catch (err) {
+      setError(err as string);
+      throw err;
+    }
+  }, []);
+
+  const openCacheInFileManager = useCallback(async () => {
+    try {
+      await invoke('open_cache_in_file_manager');
+    } catch (err) {
+      setError(err as string);
+      throw err;
+    }
+  }, []);
+
   const cleanupInvalidRepositories = useCallback(async () => {
     try {
       const removedCount = await invoke<number>('cleanup_invalid_repositories');
@@ -263,5 +281,7 @@ export const useRepositoryManager = () => {
     deleteRepository,
     togglePin,
     getPinnedRepositories,
+    getCacheFilePath,
+    openCacheInFileManager,
   };
 };

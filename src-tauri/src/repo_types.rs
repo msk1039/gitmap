@@ -48,3 +48,12 @@ pub struct ScanPath {
     pub last_scanned: Option<DateTime<Utc>>,
     pub repository_count: usize,
 }
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct Collection {
+    pub id: String,
+    pub name: String,
+    pub color: String, // Theme color for the collection (hex color code)
+    pub repository_paths: Vec<String>, // Paths of repositories in this collection
+    pub created_at: DateTime<Utc>,
+}

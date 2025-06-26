@@ -140,7 +140,7 @@ impl GitScanner {
         });
 
         // Merge new repositories with existing ones, preserving pin states
-        for mut new_repo in &mut self.repos {
+        for new_repo in &mut self.repos {
             if let Some(existing_repo) = existing_cache.repositories.get(&new_repo.path) {
                 // Preserve pin state from existing repository
                 new_repo.is_pinned = existing_repo.is_pinned;

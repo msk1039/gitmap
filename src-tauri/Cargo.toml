@@ -27,4 +27,5 @@ walkdir = "2.3"
 git2 = "0.18"
 chrono = { version = "0.4", features = ["serde"] }
 dirs = "5.0"
+uuid = { version = "1.6", features = ["v4", "serde"] }
 
