@@ -79,11 +79,15 @@ export const ScanDirectoryManager: React.FC<ScanDirectoryManagerProps> = ({
     loadScanPaths();
   }, [repositories]); // Add repositories as dependency so it updates when repositories change
 
+
+
+  // removed these default paths for now, make make them platform specific later
+  
   const setDefaultPaths = async () => {
     const defaultPaths: ScanPath[] = [
-      { path: '/Users', repository_count: 0 },
-      { path: '/opt', repository_count: 0 },
-      { path: '/usr/local', repository_count: 0 },
+      // { path: '/Users', repository_count: 0 },
+      // { path: '/opt', repository_count: 0 },
+      // { path: '/usr/local', repository_count: 0 },
     ];
     
     // Add default paths to backend

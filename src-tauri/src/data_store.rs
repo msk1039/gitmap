@@ -414,4 +414,12 @@ impl DataStore {
             Err(format!("Collection not found: {}", collection_id))
         }
     }
+    
+    pub fn get_cache_file_path(&self) -> PathBuf {
+        self.cache_file_path.clone()
+    }
+    
+    pub fn get_cache_file_path_string(&self) -> String {
+        self.cache_file_path.to_string_lossy().to_string()
+    }
 }

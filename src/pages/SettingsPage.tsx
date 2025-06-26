@@ -1,15 +1,29 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRepositoryManager } from '../hooks/useRepositoryManager';
 import { Navigation } from '../components/Navigation';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { Trash2, Database, AlertTriangle } from "lucide-react";
+import { Trash2, Database, AlertTriangle, FolderOpen } from "lucide-react";
 import { toast } from "sonner";
 
 export const SettingsPage: React.FC = () => {
   const [isClearing, setIsClearing] = useState(false);
-  const { clearCache, cacheInfo, loadCacheInfo } = useRepositoryManager();
+  const [cacheFilePath, setCacheFilePath] = useState<string | null>(null);
+  const { clearCache, cacheInfo, loadCacheInfo, getCacheFilePath, openCacheInFileManager } = useRepositoryManager();
+
+  // Load cache file path on component mount
+  useEffect(() => {
+    const loadCachePath = async () => {
+      try {
+        const path = await getCacheFilePath();
+        setCacheFilePath(path);
+      } catch (error) {
+        console.warn('Failed to get cache file path:', error);
+      }
+    };
+    loadCachePath();
+  }, [getCacheFilePath]);
 
   const handleClearData = async () => {
     try {
@@ -27,6 +41,21 @@ export const SettingsPage: React.FC = () => {
       });
     } finally {
       setIsClearing(false);
+    }
+  };
+
+  const handleOpenCacheInFileManager = async () => {
+    try {
+      await openCacheInFileManager();
+      toast.success("Opened cache location", {
+        description: "The cache file location has been opened in your file manager.",
+        duration: 3000,
+      });
+    } catch (error) {
+      toast.error("Failed to open cache location", {
+        description: error instanceof Error ? error.message : "An unknown error occurred",
+        duration: 5000,
+      });
     }
   };
 
@@ -61,7 +90,7 @@ export const SettingsPage: React.FC = () => {
             </div>
 
             {/* Cache Information Card */}
-            <Card className="mb-6">
+            <Card className="mb-6 rounded-lg shadow-sm">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Database className="h-5 w-5" />
@@ -104,6 +133,31 @@ export const SettingsPage: React.FC = () => {
                     </p>
                   </div>
                 )}
+
+                {/* Cache File Path Section */}
+                <div className="pt-4 border-t space-y-3">
+                  <div className="space-y-2">
+                    <h3 className="text-sm font-medium">Cache File Location</h3>
+                    <p className="text-sm text-muted-foreground">
+                      Path to the JSON file where repository data is stored
+                    </p>
+                    <div className="bg-slate-50 border rounded-md p-3">
+                      <p className="text-xs font-mono break-all text-slate-700">
+                        {cacheFilePath || "Loading cache file path..."}
+                      </p>
+                    </div>
+                    {cacheFilePath && (
+                      <Button 
+                        onClick={handleOpenCacheInFileManager}
+                        variant="outline"
+                        size="sm"
+                      >
+                        <FolderOpen className="h-4 w-4 mr-2" />
+                        Open in File Manager
+                      </Button>
+                    )}
+                  </div>
+                </div>
               </CardContent>
             </Card>
 

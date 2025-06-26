@@ -153,9 +153,9 @@ export const RepositoryList: React.FC<RepositoryListProps> = ({
               </div>
               
               <div className="flex items-center gap-4 text-xs text-muted-foreground ">
-                        <div className="">
+                        {/* <div className="">
                 <CollectionBadges repositoryPath={repo.path} refreshTrigger={collectionRefreshTrigger} />
-              </div>
+              </div> */}
 
                 <div className="flex items-center gap-1">
                   <GitBranch className="h-3 w-3" />
@@ -167,14 +167,16 @@ export const RepositoryList: React.FC<RepositoryListProps> = ({
               </div>
               
               {/* Collection badges */}
-              {/* <div className="mt-2">
+              <div className="mt-2">
                 <CollectionBadges repositoryPath={repo.path} refreshTrigger={collectionRefreshTrigger} />
-              </div> */}
+              </div>
             </div>
             
             <div className="flex flex-col items-end min-w-32 shrink-0">
               <div className="flex gap-2 mb-2">
-                
+                   {/* <div className="">
+                <CollectionBadges repositoryPath={repo.path} refreshTrigger={collectionRefreshTrigger} />
+              </div> */}
 
                 <Tooltip>
                   <TooltipTrigger asChild>
@@ -251,11 +253,12 @@ export const RepositoryList: React.FC<RepositoryListProps> = ({
                       onClick={(e) => {
                         e.stopPropagation();
                       }}
-                      className={`h-8 w-8 p-0 shadow-xs border-1 ${
+                      className={`h-8 px-2 shadow-xs border-1 ${
                         repo.is_pinned ? "opacity-100 shadow-md hover:shadow-lg hover:bg-muted/50" : "opacity-0 group-hover:opacity-100 "
                       } transition-opacity`}
                     >
                       <Pin className="h-4 w-4" />
+                       {/* <span>{repo.is_pinned ? "Unpin" : ""}</span> */}
                     </Toggle>
                   </TooltipTrigger>
                   <TooltipContent>

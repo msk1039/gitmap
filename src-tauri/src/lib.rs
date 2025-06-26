@@ -398,6 +398,51 @@ async fn get_repositories_in_collection(
     data_store.get_repositories_in_collection(&collection_id)
 }
 
+#[command]
+async fn get_cache_file_path(_state: State<'_, AppState>) -> Result<String, String> {
+    let scanner = GitScanner::new()?;
+    let data_store = scanner.data_store;
+    Ok(data_store.get_cache_file_path_string())
+}
+
+#[command]
+async fn open_cache_in_file_manager(_state: State<'_, AppState>) -> Result<(), String> {
+    let scanner = GitScanner::new()?;
+    let data_store = scanner.data_store;
+    let cache_path = data_store.get_cache_file_path();
+    
+    // Get the parent directory of the cache file
+    let parent_dir = cache_path.parent()
+        .ok_or("Could not get cache file parent directory")?;
+    
+    // Use the system's default file manager to open the directory
+    #[cfg(target_os = "macos")]
+    {
+        std::process::Command::new("open")
+            .arg(parent_dir)
+            .spawn()
+            .map_err(|e| format!("Failed to open file manager: {}", e))?;
+    }
+    
+    #[cfg(target_os = "windows")]
+    {
+        std::process::Command::new("explorer")
+            .arg(parent_dir)
+            .spawn()
+            .map_err(|e| format!("Failed to open file manager: {}", e))?;
+    }
+    
+    #[cfg(target_os = "linux")]
+    {
+        std::process::Command::new("xdg-open")
+            .arg(parent_dir)
+            .spawn()
+            .map_err(|e| format!("Failed to open file manager: {}", e))?;
+    }
+    
+    Ok(())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     match GitScanner::new() {
@@ -435,7 +480,9 @@ pub fn run() {
                     add_repository_to_collection,
                     remove_repository_from_collection,
                     delete_collection,
-                    get_repositories_in_collection
+                    get_repositories_in_collection,
+                    get_cache_file_path,
+                    open_cache_in_file_manager
                 ])
                 .run(tauri::generate_context!())
                 .expect("error while running tauri application");

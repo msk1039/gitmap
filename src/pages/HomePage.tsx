@@ -243,9 +243,9 @@ export const HomePage: React.FC = () => {
                     ) : (
                       <Search className="h-4 w-4" />
                     )}
-                    {isScanning ? 'Scanning...' : 'Scan Repositories'}
+                    {isScanning ? 'Scanning...' : 'Scan'}
                   </Button>
-                  {/* <Button
+                  <Button
                     onClick={refreshCache}
                     disabled={isScanning}
                     variant="outline"
@@ -253,8 +253,8 @@ export const HomePage: React.FC = () => {
                     className="gap-2 h-10 hover:cursor-pointer"
                   >
                     <RefreshCw className="h-4 w-4" />
-                    Refresh Cache
-                  </Button> */}
+                    Refresh
+                  </Button>
                 </div>
               </div>
                 
