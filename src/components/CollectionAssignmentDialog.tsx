@@ -130,18 +130,22 @@ export const CollectionAssignmentDialog: React.FC<CollectionAssignmentDialogProp
             <ScrollArea className="h-64">
               <div className="space-y-3">
                 {collections.map((collection) => (
-                  <div key={collection.id} className="flex items-center space-x-2">
+                  <div 
+                    key={collection.id} 
+                    className="flex items-center space-x-2 cursor-pointer hover:bg-muted/50 rounded p-2 -m-2"
+                    onClick={() => handleCollectionToggle(collection.id)}
+                  >
                     <input
                       type="checkbox"
-                      id={collection.id}
+                      id={`dialog-${collection.id}`}
                       checked={selectedCollections.has(collection.id)}
                       onChange={() => handleCollectionToggle(collection.id)}
                       disabled={isSaving}
-                      className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                      className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary pointer-events-none"
                     />
                     <label
-                      htmlFor={collection.id}
-                      className="text-sm font-medium cursor-pointer flex-1"
+                      htmlFor={`dialog-${collection.id}`}
+                      className="text-sm font-medium cursor-pointer flex-1 pointer-events-none"
                     >
                       {collection.name}
                       <span className="text-xs text-muted-foreground ml-2">

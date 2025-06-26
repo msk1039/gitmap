@@ -10,20 +10,44 @@ import { toast } from "sonner";
 interface CollectionsSidebarProps {
   selectedCollection: string;
   onCollectionChange: (collectionId: string) => void;
+  refreshTrigger?: number; // Add this to trigger refreshes from parent
 }
 
 export const CollectionsSidebar: React.FC<CollectionsSidebarProps> = ({
   selectedCollection,
-  onCollectionChange
+  onCollectionChange,
+  refreshTrigger
 }) => {
   const [collections, setCollections] = useState<Collection[]>([]);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [newCollectionName, setNewCollectionName] = useState('');
+  const [selectedColor, setSelectedColor] = useState('#6366f1'); // Default indigo
   const [isCreating, setIsCreating] = useState(false);
+
+  // Predefined color options
+  const colorOptions = [
+    { name: 'Indigo', value: '#6366f1' },
+    { name: 'Purple', value: '#8b5cf6' },
+    { name: 'Pink', value: '#ec4899' },
+    { name: 'Red', value: '#ef4444' },
+    { name: 'Orange', value: '#f97316' },
+    { name: 'Yellow', value: '#eab308' },
+    { name: 'Green', value: '#22c55e' },
+    { name: 'Emerald', value: '#10b981' },
+    { name: 'Teal', value: '#14b8a6' },
+    { name: 'Blue', value: '#3b82f6' },
+  ];
 
   useEffect(() => {
     loadCollections();
   }, []);
+
+  // Refresh collections when refreshTrigger changes
+  useEffect(() => {
+    if (refreshTrigger !== undefined) {
+      loadCollections();
+    }
+  }, [refreshTrigger]);
 
   const loadCollections = async () => {
     try {
@@ -42,9 +66,13 @@ export const CollectionsSidebar: React.FC<CollectionsSidebarProps> = ({
 
     try {
       setIsCreating(true);
-      await invoke('create_collection', { name: newCollectionName.trim() });
+      await invoke('create_collection', { 
+        name: newCollectionName.trim(), 
+        color: selectedColor 
+      });
       await loadCollections();
       setNewCollectionName('');
+      setSelectedColor('#6366f1'); // Reset to default color
       setIsCreateDialogOpen(false);
       toast.success('Collection created successfully');
     } catch (error) {
@@ -136,6 +164,33 @@ export const CollectionsSidebar: React.FC<CollectionsSidebarProps> = ({
                 }}
               />
             </div>
+            
+            <div className="grid grid-cols-4 items-start gap-4">
+              <label className="text-right text-sm font-medium mt-2">
+                Color
+              </label>
+              <div className="col-span-3">
+                <div className="grid grid-cols-5 gap-2">
+                  {colorOptions.map((color) => (
+                    <button
+                      key={color.value}
+                      type="button"
+                      onClick={() => setSelectedColor(color.value)}
+                      className={`w-8 h-8 rounded-full border-2 transition-all ${
+                        selectedColor === color.value 
+                          ? 'border-gray-400 ring-2 ring-offset-2 ring-gray-400' 
+                          : 'border-gray-200 hover:border-gray-300'
+                      }`}
+                      style={{ backgroundColor: color.value }}
+                      title={color.name}
+                    />
+                  ))}
+                </div>
+                <div className="mt-2 text-xs text-muted-foreground">
+                  Selected: {colorOptions.find(c => c.value === selectedColor)?.name}
+                </div>
+              </div>
+            </div>
           </div>
           <DialogFooter>
             <Button
@@ -143,6 +198,7 @@ export const CollectionsSidebar: React.FC<CollectionsSidebarProps> = ({
               onClick={() => {
                 setIsCreateDialogOpen(false);
                 setNewCollectionName('');
+                setSelectedColor('#6366f1'); // Reset to default color
               }}
               disabled={isCreating}
             >

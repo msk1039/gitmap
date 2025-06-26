@@ -21,6 +21,7 @@ export const HomePage: React.FC = () => {
   const [sortBy, setSortBy] = useState<SortOption>('name');
   const [selectedCollection, setSelectedCollection] = useState<string>('all');
   const [collectionRepositories, setCollectionRepositories] = useState<GitRepository[]>([]);
+  const [collectionsRefreshTrigger, setCollectionsRefreshTrigger] = useState(0);
   
   const {
     repositories,
@@ -46,7 +47,7 @@ export const HomePage: React.FC = () => {
     
     // First filter by collection
     let collectionFiltered = repositories;
-    if (selectedCollection !== 'all' && collectionRepositories.length > 0) {
+    if (selectedCollection !== 'all') {
       // Filter repositories to only those in the selected collection
       const collectionPaths = new Set(collectionRepositories.map(repo => repo.path));
       collectionFiltered = repositories.filter(repo => collectionPaths.has(repo.path));
@@ -115,6 +116,11 @@ export const HomePage: React.FC = () => {
     }
   };
 
+  const handleCollectionAssignmentChange = () => {
+    // Trigger a refresh of the collections sidebar
+    setCollectionsRefreshTrigger(prev => prev + 1);
+  };
+
   const handleRepositoryClick = (repoPath: string, repoName: string) => {
     // Navigate to the repository detail page
     navigate(`/repository/${encodeURIComponent(repoName)}?path=${encodeURIComponent(repoPath)}`);
@@ -145,9 +151,9 @@ export const HomePage: React.FC = () => {
         <main className="h-full grow flex flex-col">
           <div className="grid grid-cols-5 gap-4 w-full flex flex-col">
 
-            <div className='col-span-1 w-full h-screen border-r flex flex-col items-center justify-center sticky top-0 bg-background'>
+            <div className='col-span-1 w-full h-screen border-r flex flex-col items-center sticky top-0 bg-background pt-12'>
               {/* collections list sidebar */}
-              <div className='flex flex-col items-center justify-center px-4 border-t border-b py-4'>
+              <div className='flex flex-col items-center justify-center px-4 border-t border-b py-4 mt-30'>
               <h2 className='text-lg font-semibold mb-4'>Collections</h2>
               <p className='text-sm text-muted-foreground'>Manage your collections of repositories</p>
               
@@ -156,6 +162,7 @@ export const HomePage: React.FC = () => {
               <CollectionsSidebar 
                 selectedCollection={selectedCollection}
                 onCollectionChange={handleCollectionChange}
+                refreshTrigger={collectionsRefreshTrigger}
               />
 
 
@@ -277,6 +284,8 @@ export const HomePage: React.FC = () => {
                 onOpenInVSCode={openInVSCode}
                 onOpenInFileManager={openInFileManager}
                 onTogglePin={togglePin}
+                onCollectionChange={handleCollectionAssignmentChange}
+                collectionRefreshTrigger={collectionsRefreshTrigger}
                 isLoading={isScanning && !scanProgress}
               />
             </div></div>

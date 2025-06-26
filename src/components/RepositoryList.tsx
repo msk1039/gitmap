@@ -2,9 +2,10 @@ import React, { useState } from 'react';
 import { GitRepository } from '../types/repository';
 import { Button } from "@/components/ui/button";
 import { Toggle } from "@/components/ui/toggle";
+import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { CollectionAssignmentDialog } from './CollectionAssignmentDialog';
 import { CollectionBadges } from './CollectionBadges';
-import { GitBranch, ExternalLink, Folder, FolderOpen, Pin, Tags } from "lucide-react";
+import { GitBranch, Folder, FolderOpen, Pin, Tags } from "lucide-react";
 import { toast } from "sonner";
 
 interface RepositoryListProps {
@@ -13,6 +14,8 @@ interface RepositoryListProps {
   onOpenInVSCode: (path: string) => void;
   onOpenInFileManager?: (path: string) => void;
   onTogglePin?: (repoPath: string) => void;
+  onCollectionChange?: () => void;
+  collectionRefreshTrigger?: number;
   isLoading?: boolean;
 }
 
@@ -22,6 +25,8 @@ export const RepositoryList: React.FC<RepositoryListProps> = ({
   onOpenInVSCode,
   onOpenInFileManager,
   onTogglePin,
+  onCollectionChange,
+  collectionRefreshTrigger,
   isLoading = false
 }) => {
   const [collectionDialogOpen, setCollectionDialogOpen] = useState(false);
@@ -79,7 +84,7 @@ export const RepositoryList: React.FC<RepositoryListProps> = ({
     );
   }
 
-  if (repositories.length === 0) {
+  if (repositories.length === 0 ) {
     return (
       <div className="space-y-4">
         <div className="border">
@@ -105,7 +110,7 @@ export const RepositoryList: React.FC<RepositoryListProps> = ({
     return (
       <li key={repo.path} className="border-b last:border-b-0">
         <div
-          className="block p-4 text-sm font-medium transition-colors hover:bg-foreground hover:text-background cursor-pointer group"
+          className="block p-4 text-sm font-medium transition-colors cursor-pointer group"
           onClick={() => onRepositoryClick?.(repo.path, repo.name)}
         >
           <div className="flex items-center justify-between gap-4">
@@ -118,30 +123,40 @@ export const RepositoryList: React.FC<RepositoryListProps> = ({
               </div>
               
               <div className="relative group/path pr-6">
-                <div className="text-xs text-muted-foreground group-hover:text-background/70 mb-2 truncate w-full hover:underline">
+                <div className="text-xs text-muted-foreground mb-2 truncate w-full hover:underline">
                   {repo.path}
                 </div>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  className="absolute right-0 top-0 h-4 w-4 p-0 opacity-0 group-hover/path:opacity-100 transition-opacity rounded-sm"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    navigator.clipboard.writeText(repo.path);
-                    toast.success("Path copied to clipboard!", {
-                      description: repo.path,
-                      duration: 2000,
-                    });
-                  }}
-                  title="Copy path to clipboard"
-                >
-                  <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                  </svg>
-                </Button>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="absolute right-0 top-0 h-4 w-4 p-0 opacity-0 group-hover/path:opacity-100 transition-opacity rounded-sm"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        navigator.clipboard.writeText(repo.path);
+                        toast.success("Path copied to clipboard!", {
+                          description: repo.path,
+                          duration: 2000,
+                        });
+                      }}
+                    >
+                      <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                      </svg>
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Copy path to clipboard</p>
+                  </TooltipContent>
+                </Tooltip>
               </div>
               
-              <div className="flex items-center gap-4 text-xs text-muted-foreground group-hover:text-background/70">
+              <div className="flex items-center gap-4 text-xs text-muted-foreground ">
+                        <div className="">
+                <CollectionBadges repositoryPath={repo.path} refreshTrigger={collectionRefreshTrigger} />
+              </div>
+
                 <div className="flex items-center gap-1">
                   <GitBranch className="h-3 w-3" />
                   <span className='text-green-700'>{repo.current_branch || 'Unknown'}</span>
@@ -152,71 +167,104 @@ export const RepositoryList: React.FC<RepositoryListProps> = ({
               </div>
               
               {/* Collection badges */}
-              <div className="mt-2">
-                <CollectionBadges repositoryPath={repo.path} />
-              </div>
+              {/* <div className="mt-2">
+                <CollectionBadges repositoryPath={repo.path} refreshTrigger={collectionRefreshTrigger} />
+              </div> */}
             </div>
             
             <div className="flex flex-col items-end min-w-32 shrink-0">
-              <div className="flex gap-1 mb-2">
-                <Toggle
-                  size="sm"
-                  pressed={repo.is_pinned}
-                  onPressedChange={() => {
-                    // This will be called when the toggle state changes
-                    onTogglePin?.(repo.path);
-                  }}
-                  onClick={(e) => {
-                    // Stop propagation to prevent navigation to repository page
-                    e.stopPropagation();
-                  }}
-                  className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity data-[state=on]:opacity-100"
-                  title={repo.is_pinned ? "Unpin repository" : "Pin repository"}
-                >
-                  <Pin className="h-3 w-3" />
-                </Toggle>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="h-6 px-2 text-xs opacity-0 group-hover:opacity-100 transition-opacity text-black"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setSelectedRepository(repo);
-                    setCollectionDialogOpen(true);
-                  }}
-                >
-                  <Tags className="h-3 w-3 mr-1" />
-                  Collections
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="h-6 px-2 text-xs opacity-0 group-hover:opacity-100 transition-opacity text-black"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onOpenInVSCode(repo.path);
-                  }}
-                >
-                  <ExternalLink className="h-3 w-3 mr-1" />
-                  VS Code
-                </Button>
+              <div className="flex gap-2 mb-2">
+                
+
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-8 w-8 p-0 opacity-0 group-hover:opacity-100 transition-opacity text-black"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedRepository(repo);
+                        setCollectionDialogOpen(true);
+                      }}
+                    >
+                      <Tags className="h-3 w-3" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Add to Collections</p>
+                  </TooltipContent>
+                </Tooltip>
+
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-8 w-8 p-0 opacity-0 group-hover:opacity-100 transition-opacity text-black"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onOpenInVSCode(repo.path);
+                      }}
+                    >
+                      <img 
+                        src="/vscode-icon.svg" 
+                        alt="VS Code" 
+                        className="h-4 w-4"
+                      />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Open in VS Code</p>
+                  </TooltipContent>
+                </Tooltip>
+
                 {onOpenInFileManager && (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="h-6 px-2 text-xs opacity-0 group-hover:opacity-100 transition-opacity text-black"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onOpenInFileManager(repo.path);
-                    }}
-                  >
-                    <FolderOpen className="h-3 w-3 mr-1" />
-                    Files
-                  </Button>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-8 w-8 p-0 opacity-0 group-hover:opacity-100 transition-opacity text-black"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onOpenInFileManager(repo.path);
+                        }}
+                      >
+                        <FolderOpen className="h-4 w-4" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Open in File Manager</p>
+                    </TooltipContent>
+                  </Tooltip>
                 )}
+
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Toggle
+                      size="sm"
+                      pressed={repo.is_pinned}
+                      onPressedChange={() => {
+                        onTogglePin?.(repo.path);
+                      }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                      }}
+                      className={`h-8 w-8 p-0 shadow-xs border-1 ${
+                        repo.is_pinned ? "opacity-100 shadow-md hover:shadow-lg hover:bg-muted/50" : "opacity-0 group-hover:opacity-100 "
+                      } transition-opacity`}
+                    >
+                      <Pin className="h-4 w-4" />
+                    </Toggle>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>{repo.is_pinned ? "Unpin repository" : "Pin repository"}</p>
+                  </TooltipContent>
+                </Tooltip>
               </div>
               
-              <div className="text-xs text-muted-foreground group-hover:text-background/70 text-right">
+              <div className="text-xs text-muted-foreground text-right">
                 <div>Last commit:</div>
                 <div>{formatDate(repo.last_commit_date)}</div>
               </div>
@@ -277,6 +325,7 @@ export const RepositoryList: React.FC<RepositoryListProps> = ({
           onCollectionChange={() => {
             // Refresh the collection badges by re-rendering
             // The CollectionBadges component will automatically update
+            onCollectionChange?.();
           }}
         />
       )}

@@ -257,7 +257,10 @@ export const RepositoryPage: React.FC = () => {
       <Navigation repositoryCount={0} />
 
       {/* Repository-specific breadcrumbs */}
-      <div className="border-b bg-background">
+      <div className='w-full mt-12 flex'>
+
+      <aside className="md:w-32 w-4 border-r "></aside>
+      <div className="border-b bg-background grow">
         <div className="mx-auto max-w-7xl px-6 py-2">
           <Breadcrumb>
             <BreadcrumbList>
@@ -281,7 +284,8 @@ export const RepositoryPage: React.FC = () => {
           </Breadcrumb>
         </div>
       </div>
-
+      <aside className="md:w-32 w-4 border-l"></aside>
+</div>
       <div className="flex min-h-[calc(100vh-6rem)] w-full items-stretch">
         <aside className="w-32 border-r"></aside>
         <main className="h-full grow">

@@ -66,7 +66,23 @@ impl DataStore {
         
         // Try to parse as the new format first
         match serde_json::from_str::<RepositoryCache>(&content) {
-            Ok(cache) => Ok(cache),
+            Ok(mut cache) => {
+                // Check if any collections are missing colors (for migration)
+                let mut needs_update = false;
+                for collection in cache.collections.values_mut() {
+                    if collection.color.is_empty() {
+                        collection.color = "#6366f1".to_string(); // Default indigo color
+                        needs_update = true;
+                    }
+                }
+                
+                if needs_update {
+                    cache.last_updated = Utc::now();
+                    self.save_cache(&cache)?;
+                }
+                
+                Ok(cache)
+            },
             Err(_) => {
                 // If parsing fails, try to migrate from old format
                 self.migrate_cache_format(&content)
@@ -311,7 +327,7 @@ impl DataStore {
     }
     
     // Collection-related methods
-    pub fn create_collection(&self, name: String) -> Result<Collection, String> {
+    pub fn create_collection(&self, name: String, color: String) -> Result<Collection, String> {
         let mut cache = self.load_cache()?;
         
         // Check if collection name already exists
@@ -323,6 +339,7 @@ impl DataStore {
         let collection = Collection {
             id: collection_id.clone(),
             name,
+            color,
             repository_paths: Vec::new(),
             created_at: Utc::now(),
         };

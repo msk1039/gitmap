@@ -346,10 +346,10 @@ async fn get_pinned_repositories(_state: State<'_, AppState>) -> Result<Vec<GitR
 
 // Collection-related commands
 #[command]
-async fn create_collection(name: String, _state: State<'_, AppState>) -> Result<repo_types::Collection, String> {
+async fn create_collection(name: String, color: String, _state: State<'_, AppState>) -> Result<repo_types::Collection, String> {
     let scanner = GitScanner::new()?;
     let data_store = scanner.data_store;
-    data_store.create_collection(name)
+    data_store.create_collection(name, color)
 }
 
 #[command]

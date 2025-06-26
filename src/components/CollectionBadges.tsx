@@ -5,14 +5,22 @@ import { Badge } from "@/components/ui/badge";
 
 interface CollectionBadgesProps {
   repositoryPath: string;
+  refreshTrigger?: number; // Add this to trigger refreshes from parent
 }
 
-export const CollectionBadges: React.FC<CollectionBadgesProps> = ({ repositoryPath }) => {
+export const CollectionBadges: React.FC<CollectionBadgesProps> = ({ repositoryPath, refreshTrigger }) => {
   const [collections, setCollections] = useState<Collection[]>([]);
 
   useEffect(() => {
     loadCollections();
   }, [repositoryPath]);
+
+  // Refresh collections when refreshTrigger changes
+  useEffect(() => {
+    if (refreshTrigger !== undefined) {
+      loadCollections();
+    }
+  }, [refreshTrigger]);
 
   const loadCollections = async () => {
     try {
@@ -33,7 +41,12 @@ export const CollectionBadges: React.FC<CollectionBadgesProps> = ({ repositoryPa
   return (
     <div className="flex flex-wrap gap-1">
       {collections.map((collection) => (
-        <Badge key={collection.id} variant="secondary" className="text-xs">
+        <Badge 
+          key={collection.id} 
+          variant="secondary" 
+          className="text-xs text-white border-0" 
+          style={{ backgroundColor: collection.color }}
+        >
           {collection.name}
         </Badge>
       ))}

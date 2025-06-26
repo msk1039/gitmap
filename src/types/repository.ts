@@ -51,6 +51,7 @@ export interface CacheInfo {
 export interface Collection {
   id: string;
   name: string;
+  color: string; // Theme color for the collection (hex color code)
   repository_paths: string[];
   created_at: string;
 }
