@@ -5,7 +5,12 @@ Never lose track of your Git repositories again. gitmap scans your entire disk, 
 
 
 <!-- https://github.com/user-attachments/assets/32746ca4-4295-482f-9bf6-875130fe4a64 -->
-https://res.cloudinary.com/dvdcl3ozp/video/upload/v1750968418/projects/gitfinder/demo-videos/Screen_Recording_2025-06-27_at_1.31.06_AM_x7ajf5.mov
+<!-- https://res.cloudinary.com/dvdcl3ozp/video/upload/v1750968418/projects/gitfinder/demo-videos/Screen_Recording_2025-06-27_at_1.31.06_AM_x7ajf5.mov  -->
+
+
+https://github.com/user-attachments/assets/98e7dcab-b82b-4838-b449-3d9ad6a4ed55
+
+
 
 
 ## Features
