@@ -148,15 +148,15 @@ export const HomePage: React.FC = () => {
         <aside className="md:w-32 w-4 border-r"></aside>
         
         <main className="h-full grow flex flex-col">
-          <div className="grid grid-cols-5 gap-4 w-full flex flex-col">
+          <div className="grid grid-cols-5 gap-4 w-full">
 
             <div className='col-span-1 w-full h-screen border-r flex flex-col items-center sticky top-0 bg-background pt-12'>
               {/* collections list sidebar */}
-              <div className='flex flex-col items-center justify-center mt-30 border-t border-b pt-4'>
-                <div className='flex flex-col items-center justify-center px-4'>
+              <div className='flex flex-col items-center justify-center mt-30 border-t border-b p-4 w-full bg-[#f7faf6]' >
+                <div className='flex flex-col items-center justify-center px-4 mb-2'>
 
-              <h2 className='text-lg font-semibold mb-4'>Collections</h2>
-              <p className='text-sm text-muted-foreground'>Manage your collections of repositories</p>
+              <h2 className='text-lg font-semibold'>Collections</h2>
+              {/* <p className='text-sm text-muted-foreground'>Manage your collections of repositories</p> */}
                 </div>
               
 
@@ -171,7 +171,7 @@ export const HomePage: React.FC = () => {
               </div>
             </div>
             {/* Title and Controls Section */}
-            <div className='col-span-3 w-full flex flex-col p-6'>
+            <div className='col-span-3 w-full flex flex-col py-6'>
             <div className="flex flex-col gap-4">
               <div className="pt-12">
                 <div className='my-5'>
@@ -218,18 +218,18 @@ export const HomePage: React.FC = () => {
                     className="w-full border-0 shadow-none focus:border-0 focus:ring-0 focus-visible:ring-0 focus-visible:ring-offset-0"
                     />
                   </div>
-                  {searchQuery && (
+                  {/* {searchQuery && (
                     <div className='h-full w-15 flex items-center justify-center mr-2'>
                   <Button
                   onClick={() => setSearchQuery('')}
                   variant="ghost"
                   size="sm"
-                  className="text-muted-foreground hover:text-foreground transform text-muted-foreground h-10 w-15 rounded-sm hover:cursor-pointer" 
+                  className="hover:text-foreground transform text-muted-foreground h-10 w-12 rounded-sm hover:cursor-pointer" 
                   >
                   Clear
                   </Button>
                   </div>
-                )}
+                )} */}
                 </div>
 
 

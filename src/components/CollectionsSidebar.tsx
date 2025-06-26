@@ -126,13 +126,13 @@ export const CollectionsSidebar: React.FC<CollectionsSidebarProps> = ({
   };
 
   return (
-    <div className="w-full bg-background p-4 flex flex-col">
-      <div className="mb-4">
-        <h3 className="font-medium text-sm mb-3">Collections</h3>
+    <div className="flex flex-col w-full rounded-lg">
+      <div className="">
+        {/* <h3 className="font-medium text-sm mb-3">Collections</h3> */}
         
         <div className="">
           {/* All repositories option */}
-          <div className="flex items-center space-x-2 p-1 px-2">
+          <div className={`flex items-center space-x-2 px-2  rounded-lg border-1` + (selectedCollection === "all" ? ' bg-background shadow-sm' : ' hover:bg-muted/100 transition-colors')}>
             <input
               type="checkbox"
               id="all"
@@ -142,7 +142,7 @@ export const CollectionsSidebar: React.FC<CollectionsSidebarProps> = ({
             />
             <label
               htmlFor="all"
-              className="text-sm font-medium cursor-pointer flex items-center gap-2"
+              className="text-sm font-medium cursor-pointer flex items-center gap-2 h-10"
             >
               <FolderOpen className="h-4 w-4" />
               All Repositories
@@ -151,25 +151,29 @@ export const CollectionsSidebar: React.FC<CollectionsSidebarProps> = ({
 
           {/* Custom collections */}
           {collections.map((collection) => (
-            <div key={collection.id} className="group flex items-center justify-between space-x-2 p-1 px-2 rounded-md hover:bg-muted/100 transition-colors active">
-              <div className="flex items-center space-x-2 flex-1 min-w-0">
+            <div key={collection.id} className={`group flex items-center justify-between space-x-2 my-2 rounded-lg hover:bg-muted/100 transition-colors border-1 ${selectedCollection === collection.id ? 'bg-background shadow-sm' : ''} `}>
+              <div className="flex items-center space-x-2 flex-1 min-w-0 h-10 px-2">
                 <input
                   type="checkbox"
                   id={collection.id}
                   checked={selectedCollection === collection.id}
                   onChange={() => handleCollectionSelect(collection.id)}
-                  className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                  className="h-4 w-4 rounded focus:ring-primary border-2"
+                  style={{ 
+                    borderColor: collection.color,
+                    accentColor: collection.color 
+                  }}
                 />
                 <label
                   htmlFor={collection.id}
-                  className="text-sm font-medium cursor-pointer flex-1 truncate flex items-center "
+                  className="text-sm font-medium cursor-pointer flex-1 truncate flex items-center h-full"
                 >
                   <span 
                     className="inline-block w-3 h-3 rounded-full mr-2" 
                     style={{ backgroundColor: collection.color }}
                   ></span>
                   {collection.name}
-                  <span className="text-xs text-muted-foreground">
+                  <span className="text-xs text-muted-foreground ml-2">
                     ({collection.repository_paths.length})
                   </span>
                 </label>
@@ -181,13 +185,13 @@ export const CollectionsSidebar: React.FC<CollectionsSidebarProps> = ({
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="h-6 w-6 p-0 hover:bg-muted"
+                      className="h-6 w-6 p-0 hover:bg-muted rounded-full border-1 mr-2 cursor-pointer"
                       onClick={(e) => e.stopPropagation()}
                     >
-                      <MoreVertical className="h-4 w-4" />
+                      <MoreVertical className="h-4 w-4 rounded-full" />
                     </Button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
+                  <DropdownMenuContent align="start">
                     <DropdownMenuItem
                       className="text-red-600 focus:text-red-600 cursor-pointer font-medium"
                       onClick={(e) => openDeleteConfirmation(collection, e)}
@@ -206,7 +210,7 @@ export const CollectionsSidebar: React.FC<CollectionsSidebarProps> = ({
       {/* New Collection Button */}
       <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
         <DialogTrigger asChild>
-          <Button variant="outline" size="sm" className="w-full gap-2">
+          <Button variant="outline" size="sm" className="w-full gap-2 h-10 rounded-md bg-transparent border-green-600/20 mt-1">
             <Plus className="h-4 w-4" />
             New Collection
           </Button>

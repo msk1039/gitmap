@@ -7,6 +7,9 @@ import { CollectionAssignmentDialog } from './CollectionAssignmentDialog';
 import { CollectionBadges } from './CollectionBadges';
 import { GitBranch, Folder, FolderOpen, Pin, Tags } from "lucide-react";
 import { toast } from "sonner";
+import { HardDrive } from 'lucide-react';
+import { GitCommitVertical } from 'lucide-react';
+
 
 interface RepositoryListProps {
   repositories: GitRepository[];
@@ -108,7 +111,7 @@ export const RepositoryList: React.FC<RepositoryListProps> = ({
     const topFileTypes = getTopFileTypes(repo.file_types);
     
     return (
-      <li key={repo.path} className="border-b last:border-b-0">
+      <li key={repo.path} className="border-b last:border-b-0 hover:shadow-sm transition-shadow bg-white/80 hover:bg-white">
         <div
           className="block p-4 text-sm font-medium transition-colors cursor-pointer group"
           onClick={() => onRepositoryClick?.(repo.path, repo.name)}
@@ -161,8 +164,15 @@ export const RepositoryList: React.FC<RepositoryListProps> = ({
                   <GitBranch className="h-3 w-3" />
                   <span className='text-green-700'>{repo.current_branch || 'Unknown'}</span>
                 </div>
+                <div className="flex items-center gap-1">
+                  <GitCommitVertical className="h-3 w-3" />
                 <span className='text-red-700'>{repo.commit_count} commits</span>
+                </div>
+
+                <div className="flex items-center gap-1">
+                    <HardDrive className="h-3 w-3" />
                 <span className='text-sky-700'>{formatSize(repo.size_mb)}</span>
+                </div>
                 {topFileTypes && <span>{topFileTypes}</span>}
               </div>
               
@@ -280,19 +290,19 @@ export const RepositoryList: React.FC<RepositoryListProps> = ({
 
   return (
     <>
-      <div className="space-y-4">
+      <div className="space-y-4 ">
         {/* Pinned Repositories Section */}
         {pinnedRepositories.length > 0 && (
-          <div className="border bg-amber-50">
-            <div className="bg-amber-50 px-4 pt-2">
-              <div className="flex items-center gap-2">
+          <div className="border bg-amber-50 inset-shadow-sm inset-shadow-amber-200 ">
+            <div className="bg-amber-50 px-4 pt-2 inset-shadow-sm inset-shadow-amber-200">
+              <div className="flex items-center gap-2 ">
                 <Pin className="h-4 w-4 text-amber-600" fill="currentColor" />
                 <h2 className="text-sm font-medium text-amber-800">
                   Pinned Repositories ({pinnedRepositories.length})
                 </h2>
               </div>
             </div>
-            <ul className='m-2 border-1 rounded-xl bg-background shadow-sm'>
+            <ul className='m-2 border-1 rounded-xl bg-transparent shadow-sm overflow-hidden'>
               {pinnedRepositories.map(renderRepository)}
             </ul>
           </div>
@@ -300,7 +310,7 @@ export const RepositoryList: React.FC<RepositoryListProps> = ({
         
         {/* Regular Repositories Section */}
         {unpinnedRepositories.length > 0 && (
-          <div className="border bg-muted/50">
+          <div className="border bg-muted/50 inset-shadow-sm">
             {pinnedRepositories.length > 0 && (
               <div className="bg-muted/50 px-4 pt-2">
                 <h2 className="text-sm font-medium text-muted-foreground">
@@ -308,7 +318,7 @@ export const RepositoryList: React.FC<RepositoryListProps> = ({
                 </h2>
               </div>
             )}
-            <ul className='m-2 border-1 rounded-xl bg-background shadow-sm'>
+            <ul className='m-2 border-1 rounded-xl bg-transparent shadow-sm overflow-hidden'>
               {unpinnedRepositories.map(renderRepository)}
             </ul>
           </div>
