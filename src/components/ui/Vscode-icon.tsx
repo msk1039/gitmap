@@ -1,4 +1,4 @@
-import React, { FC } from 'react';
+import  { FC } from 'react';
 import { Icon, LucideProps } from 'lucide-react';
 
 interface CustomIconProps extends LucideProps {

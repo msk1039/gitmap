@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useRepositoryManager } from '../hooks/useRepositoryManager';
 import { Navigation } from '../components/Navigation';
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Trash2, Database, AlertTriangle, FolderOpen } from "lucide-react";
 import { toast } from "sonner";
@@ -80,7 +80,7 @@ export const SettingsPage: React.FC = () => {
         <aside className="md:w-32 w-4 border-r"></aside>
         
         <main className="h-full grow flex flex-col">
-          <div className="mx-auto md:max-w-4xl w-full flex flex-col p-6 border-l border-r bg-amber-50" >
+          <div className="mx-auto md:max-w-4xl w-full flex flex-col p-6 border-l border-r" >
             {/* Title Section */}
             <div className="mb-8">
               <h1 className="text-2xl font-bold">Settings</h1>
@@ -89,16 +89,28 @@ export const SettingsPage: React.FC = () => {
               </p>
             </div>
 
+            <div className='h-30 w-full mb-4 bg-yellow-50 flex items-center justify-center border-2 border-yellow-400 rounded-md'>
+            <h2 className="text-2xl font-medium text-muted-foreground gap-2 flex items-center justify-center ">
+                   {/* <Trash2 className="h-5 w-5" /> */}
+                 Settings and analytics coming soon
+                </h2>
+            </div>
+
             {/* Cache Information Card */}
-            <Card className="mb-6 rounded-xl shadow-sm">
+            <div className='border bg-[#f8f8f7] pb-2'>
+
+         <div className="bg-transparent px-4 py-2 inset-shadow-sm inset-shadow-gray-300">
+                <h2 className="text-xl font-medium text-muted-foreground flex gap-2 items-center">
+                   {/* <Trash2 className="h-5 w-5" /> */}
+                 Cache Information
+                </h2>
+              </div>
+            <Card className="rounded-xl shadow-sm mx-2">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Database className="h-5 w-5" />
-                  Cache Information
-                </CardTitle>
-                <CardDescription>
                   Current status of your local repository cache
-                </CardDescription>
+                </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 {cacheInfo ? (
@@ -161,16 +173,29 @@ export const SettingsPage: React.FC = () => {
               </CardContent>
             </Card>
 
+               </div>
+
+
+
+
             {/* Data Management Card */}
-            <Card className="rounded-xl shadow-sm">
+            <div className='border bg-amber-50 pb-2 mt-10'>
+
+            <div className="bg-transparent px-4 py-2 inset-shadow-sm inset-shadow-gray-300">
+                <h2 className="text-xl font-medium text-muted-foreground flex gap-2 items-center">
+                   {/* <Trash2 className="h-5 w-5" /> */}
+                 Data Management
+                </h2>
+              </div>
+            <Card className="rounded-xl shadow-sm mx-2 ">
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
+                {/* <CardTitle className="flex items-center gap-2">
                   <Trash2 className="h-5 w-5" />
                   Data Management
-                </CardTitle>
-                <CardDescription>
+                </CardTitle> */}
+                <CardTitle>
                   Manage your local repository data and cache
-                </CardDescription>
+                </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-2">
@@ -251,6 +276,8 @@ export const SettingsPage: React.FC = () => {
                 </div>
               </CardContent>
             </Card>
+            
+            </div>
           </div>
         </main>
         

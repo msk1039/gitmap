@@ -6,19 +6,21 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
-import { Plus, FolderOpen, MoreVertical, Trash2 } from "lucide-react";
+import { Plus, FolderOpen, MoreVertical, Trash2, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
 interface CollectionsSidebarProps {
   selectedCollection: string;
   onCollectionChange: (collectionId: string) => void;
   refreshTrigger?: number; // Add this to trigger refreshes from parent
+  isLoadingCollection?: boolean; // Add loading state
 }
 
 export const CollectionsSidebar: React.FC<CollectionsSidebarProps> = ({
   selectedCollection,
   onCollectionChange,
-  refreshTrigger
+  refreshTrigger,
+  isLoadingCollection = false
 }) => {
   const [collections, setCollections] = useState<Collection[]>([]);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
@@ -146,6 +148,9 @@ export const CollectionsSidebar: React.FC<CollectionsSidebarProps> = ({
             >
               <FolderOpen className="h-4 w-4" />
               All Repositories
+              {isLoadingCollection && selectedCollection === "all" && (
+                <Loader2 className="h-4 w-4 animate-spin text-blue-500" />
+              )}
             </label>
           </div>
 
@@ -176,6 +181,9 @@ export const CollectionsSidebar: React.FC<CollectionsSidebarProps> = ({
                   <span className="text-xs text-muted-foreground ml-2">
                     ({collection.repository_paths.length})
                   </span>
+                  {isLoadingCollection && selectedCollection === collection.id && (
+                    <Loader2 className="h-4 w-4 animate-spin text-blue-500 ml-2" />
+                  )}
                 </label>
               </div>
               

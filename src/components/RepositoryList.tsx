@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
-import { GitRepository } from '../types/repository';
+import { GitRepository, Collection } from '../types/repository';
 import { Button } from "@/components/ui/button";
 import { Toggle } from "@/components/ui/toggle";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { CollectionAssignmentDialog } from './CollectionAssignmentDialog';
 import { CollectionBadges } from './CollectionBadges';
-import { GitBranch, Folder, FolderOpen, Pin, Tags } from "lucide-react";
+import { GitBranch, Folder, FolderOpen, Pin, Tags, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { HardDrive } from 'lucide-react';
 import { GitCommitVertical } from 'lucide-react';
@@ -20,6 +20,8 @@ interface RepositoryListProps {
   onCollectionChange?: () => void;
   collectionRefreshTrigger?: number;
   isLoading?: boolean;
+  allCollections?: Collection[];
+  isInitialLoad?: boolean; // Add this to distinguish initial load from collection switching
 }
 
 export const RepositoryList: React.FC<RepositoryListProps> = ({ 
@@ -30,13 +32,15 @@ export const RepositoryList: React.FC<RepositoryListProps> = ({
   onTogglePin,
   onCollectionChange,
   collectionRefreshTrigger,
-  isLoading = false
+  isLoading = false,
+  allCollections,
+  isInitialLoad = false
 }) => {
   const [collectionDialogOpen, setCollectionDialogOpen] = useState(false);
   const [selectedRepository, setSelectedRepository] = useState<GitRepository | null>(null);
 
-  // Debug logging
-  console.log('RepositoryList rendered with:', repositories.length, 'repositories');
+  // Debug logging with performance timing
+  console.log('🎨 RepositoryList rendered with:', repositories.length, 'repositories');
   console.log('Pinned repositories:', repositories.filter(r => r.is_pinned).length);
   console.log('Repositories data:', repositories.map(r => ({ name: r.name, pinned: r.is_pinned })));
   
@@ -61,17 +65,33 @@ export const RepositoryList: React.FC<RepositoryListProps> = ({
   };
 
   if (isLoading) {
+    const loadingMessage = isInitialLoad ? "Loading repositories..." : "Filtering and organizing your collection";
+    const loadingDescription = isInitialLoad ? "Discovering your Git repositories" : "Applying collection filters";
+    
     return (
       <div className="space-y-4">
         <div className="border">
-          <ul>
-            {[...Array(5)].map((_, i) => (
+          {/* Loading indicator with spinner and message */}
+          <div className="flex items-center justify-center w-full p-8 text-sm text-muted-foreground">
+            <div className="text-center">
+              <div className="flex items-center justify-center mb-4">
+                <RefreshCw className="h-8 w-8 animate-spin text-blue-500" />
+              </div>
+              <div className="font-medium text-lg mb-2">{loadingMessage}</div>
+              <div className="text-xs">{loadingDescription}</div>
+            </div>
+          </div>
+          
+          {/* Skeleton loading items for better UX */}
+          <ul className="border-t">
+            {[...Array(3)].map((_, i) => (
               <li key={i} className="border-b last:border-b-0">
                 <div className="block p-4 animate-pulse">
                   <div className="flex items-center justify-between gap-4">
                     <div className="flex flex-col items-start flex-1">
                       <div className="h-4 bg-muted rounded w-48 mb-2"></div>
-                      <div className="h-3 bg-muted rounded w-64"></div>
+                      <div className="h-3 bg-muted rounded w-64 mb-1"></div>
+                      <div className="h-3 bg-muted rounded w-32"></div>
                     </div>
                     <div className="flex flex-col items-end min-w-32">
                       <div className="h-3 bg-muted rounded w-16 mb-1"></div>
@@ -125,35 +145,35 @@ export const RepositoryList: React.FC<RepositoryListProps> = ({
                 )}
               </div>
               
-              <div className="relative group/path pr-6">
-                <div className="text-xs text-muted-foreground mb-2 truncate w-full hover:underline">
+                <div className="relative group/path pr-6 overflow-hidden">
+                <div className="text-xs text-muted-foreground mb-2 truncate w-full hover:underline max-w-[500px]">
                   {repo.path}
                 </div>
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      className="absolute right-0 top-0 h-4 w-4 p-0 opacity-0 group-hover/path:opacity-100 transition-opacity rounded-sm"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        navigator.clipboard.writeText(repo.path);
-                        toast.success("Path copied to clipboard!", {
-                          description: repo.path,
-                          duration: 2000,
-                        });
-                      }}
-                    >
-                      <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                      </svg>
-                    </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="absolute right-0 top-0 h-4 w-4 p-0 opacity-0 group-hover/path:opacity-100 transition-opacity rounded-sm"
+                    onClick={(e) => {
+                    e.stopPropagation();
+                    navigator.clipboard.writeText(repo.path);
+                    toast.success("Path copied to clipboard!", {
+                      description: repo.path,
+                      duration: 2000,
+                    });
+                    }}
+                  >
+                    <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                    </svg>
+                  </Button>
                   </TooltipTrigger>
                   <TooltipContent>
-                    <p>Copy path to clipboard</p>
+                  <p>Copy path to clipboard</p>
                   </TooltipContent>
                 </Tooltip>
-              </div>
+                </div>
               
               <div className="flex items-center gap-4 text-xs text-muted-foreground ">
                         {/* <div className="">
@@ -178,7 +198,11 @@ export const RepositoryList: React.FC<RepositoryListProps> = ({
               
               {/* Collection badges */}
               <div className="mt-2">
-                <CollectionBadges repositoryPath={repo.path} refreshTrigger={collectionRefreshTrigger} />
+                <CollectionBadges 
+                  repositoryPath={repo.path} 
+                  refreshTrigger={collectionRefreshTrigger} 
+                  allCollections={allCollections}
+                />
               </div>
             </div>
             
@@ -264,7 +288,7 @@ export const RepositoryList: React.FC<RepositoryListProps> = ({
                         e.stopPropagation();
                       }}
                       className={`h-8 px-2 shadow-xs border-1 ${
-                        repo.is_pinned ? "opacity-100 shadow-md hover:shadow-lg hover:bg-muted/50" : "opacity-0 group-hover:opacity-100 "
+                        repo.is_pinned ? "opacity-100 shadow-md hover:shadow-lg hover:bg-muted/50 border-1 border-amber-300 ring-2 ring-amber-100" : "opacity-0 group-hover:opacity-100 "
                       } transition-opacity`}
                     >
                       <Pin className="h-4 w-4" />
@@ -293,8 +317,8 @@ export const RepositoryList: React.FC<RepositoryListProps> = ({
       <div className="space-y-4 ">
         {/* Pinned Repositories Section */}
         {pinnedRepositories.length > 0 && (
-          <div className="border bg-amber-50 inset-shadow-sm inset-shadow-amber-200 ">
-            <div className="bg-amber-50 px-4 pt-2 inset-shadow-sm inset-shadow-amber-200">
+          <div className="bg-amber-50 inset-shadow-sm inset-shadow-amber-200 pb-2">
+            <div className="bg-amber-50 px-4 py-2 inset-shadow-sm inset-shadow-amber-300/50">
               <div className="flex items-center gap-2 ">
                 <Pin className="h-4 w-4 text-amber-600" fill="currentColor" />
                 <h2 className="text-sm font-medium text-amber-800">
@@ -302,7 +326,7 @@ export const RepositoryList: React.FC<RepositoryListProps> = ({
                 </h2>
               </div>
             </div>
-            <ul className='m-2 border-1 rounded-xl bg-transparent shadow-sm overflow-hidden'>
+            <ul className='mx-2 border-1 rounded-xl bg-transparent shadow-sm overflow-hidden'>
               {pinnedRepositories.map(renderRepository)}
             </ul>
           </div>
@@ -310,15 +334,15 @@ export const RepositoryList: React.FC<RepositoryListProps> = ({
         
         {/* Regular Repositories Section */}
         {unpinnedRepositories.length > 0 && (
-          <div className="border bg-muted/50 inset-shadow-sm">
+          <div className="bg-muted/50 inset-shadow-sm inset-shadow-gray-300 pb-2">
             {pinnedRepositories.length > 0 && (
-              <div className="bg-muted/50 px-4 pt-2">
+              <div className="bg-muted/50 px-4 py-2 inset-shadow-sm inset-shadow-gray-300">
                 <h2 className="text-sm font-medium text-muted-foreground">
                   All Repositories ({unpinnedRepositories.length})
                 </h2>
               </div>
             )}
-            <ul className='m-2 border-1 rounded-xl bg-transparent shadow-sm overflow-hidden'>
+            <ul className='mx-2 border-1 rounded-xl bg-transparent shadow-sm overflow-hidden'>
               {unpinnedRepositories.map(renderRepository)}
             </ul>
           </div>

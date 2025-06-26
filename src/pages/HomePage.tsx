@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useRepositoryManager } from '../hooks/useRepositoryManager';
-import { GitRepository } from '../types/repository';
+import { GitRepository, Collection } from '../types/repository';
 import { RepositoryList } from '../components/RepositoryList';
 import { ScanProgress } from '../components/ScanProgress';
 import { ScanDirectoryManager } from '../components/ScanDirectoryManager';
@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Search, RefreshCw, ArrowUpDown } from "lucide-react";
 import { invoke } from '@tauri-apps/api/core';
+import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 type SortOption = 'name' | 'lastUpdated' | 'size';
 
 export const HomePage: React.FC = () => {
@@ -22,6 +23,9 @@ export const HomePage: React.FC = () => {
   const [selectedCollection, setSelectedCollection] = useState<string>('all');
   const [collectionRepositories, setCollectionRepositories] = useState<GitRepository[]>([]);
   const [collectionsRefreshTrigger, setCollectionsRefreshTrigger] = useState(0);
+  const [allCollections, setAllCollections] = useState<Collection[]>([]);
+  const [isLoadingCollection, setIsLoadingCollection] = useState(false);
+  const [isInitialLoading, setIsInitialLoading] = useState(true);
   
   const {
     repositories,
@@ -39,11 +43,30 @@ export const HomePage: React.FC = () => {
   // Refresh repositories when component mounts
   useEffect(() => {
     console.log('HomePage mounted, loading repositories...'); // Debug log
-    loadCachedRepositories();
+    const loadInitialData = async () => {
+      setIsInitialLoading(true);
+      try {
+        await loadCachedRepositories();
+        await loadAllCollections();
+      } finally {
+        setIsInitialLoading(false);
+      }
+    };
+    loadInitialData();
   }, [loadCachedRepositories]);
 
+  const loadAllCollections = async () => {
+    try {
+      const collections = await invoke<Collection[]>('get_collections');
+      setAllCollections(collections);
+    } catch (error) {
+      console.error('Failed to load collections:', error);
+    }
+  };
+
   const filteredAndSortedRepositories = useMemo(() => {
-    console.log('Filtering and sorting repositories. Total:', repositories.length); // Debug log
+    const startTime = performance.now();
+    console.log('🔄 Filtering and sorting repositories. Total:', repositories.length); // Debug log
     
     // First filter by collection
     let collectionFiltered = repositories;
@@ -93,18 +116,30 @@ export const HomePage: React.FC = () => {
     console.log('Final sorted result:', result.length, 'repositories'); // Debug log
     console.log('Final pinned repos in result:', result.filter(r => r.is_pinned).map(r => r.name)); // Debug log
     
+    const endTime = performance.now();
+    console.log(`🔄 Filtering and sorting took: ${(endTime - startTime).toFixed(2)}ms`);
+    
     return result;
   }, [repositories, sortBy, searchQuery, selectedCollection, collectionRepositories]);
 
   const handleCollectionChange = async (collectionId: string) => {
+    console.log(`🕐 Starting collection change to: ${collectionId}`);
+    const startTime = performance.now();
+    
+    // Set loading state immediately
+    setIsLoadingCollection(true);
     setSelectedCollection(collectionId);
     
     // If it's not "all", load the repositories in this collection
     if (collectionId !== 'all') {
       try {
+        const backendStart = performance.now();
         const collectionRepos = await invoke<GitRepository[]>('get_repositories_in_collection', {
           collectionId
         });
+        const backendEnd = performance.now();
+        console.log(`🕐 Backend call took: ${(backendEnd - backendStart).toFixed(2)}ms`);
+        
         setCollectionRepositories(collectionRepos);
       } catch (error) {
         console.error('Failed to load collection repositories:', error);
@@ -113,6 +148,14 @@ export const HomePage: React.FC = () => {
     } else {
       setCollectionRepositories([]);
     }
+    
+    // Add a small delay to ensure DOM has time to update, then clear loading
+    setTimeout(() => {
+      setIsLoadingCollection(false);
+    }, 100);
+    
+    const endTime = performance.now();
+    console.log(`🕐 Total collection change took: ${(endTime - startTime).toFixed(2)}ms`);
   };
 
   const handleCollectionAssignmentChange = () => {
@@ -165,6 +208,7 @@ export const HomePage: React.FC = () => {
                 selectedCollection={selectedCollection}
                 onCollectionChange={handleCollectionChange}
                 refreshTrigger={collectionsRefreshTrigger}
+                isLoadingCollection={isLoadingCollection}
               />
 
 
@@ -234,7 +278,10 @@ export const HomePage: React.FC = () => {
 
 
                 <div className="flex gap-2 justify-center items-center">
-                  <Button
+                 
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                    <Button
                     onClick={handleShowScanDialog}
                     disabled={isScanning}
                     size="sm"
@@ -247,6 +294,13 @@ export const HomePage: React.FC = () => {
                     )}
                     {isScanning ? 'Scanning...' : 'Scan'}
                   </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Scan for new Repositories</p>
+                    </TooltipContent>
+                  </Tooltip>
+                   <Tooltip>
+                    <TooltipTrigger asChild>
                   <Button
                     onClick={refreshCache}
                     disabled={isScanning}
@@ -257,6 +311,11 @@ export const HomePage: React.FC = () => {
                     <RefreshCw className="h-4 w-4" />
                     Refresh
                   </Button>
+                  </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Refresh cached data</p>
+                    </TooltipContent>
+                  </Tooltip>
                 </div>
               </div>
                 
@@ -288,7 +347,9 @@ export const HomePage: React.FC = () => {
                 onTogglePin={togglePin}
                 onCollectionChange={handleCollectionAssignmentChange}
                 collectionRefreshTrigger={collectionsRefreshTrigger}
-                isLoading={isScanning && !scanProgress}
+                isLoading={(isScanning && !scanProgress) || isLoadingCollection || isInitialLoading}
+                allCollections={allCollections}
+                isInitialLoad={isInitialLoading}
               />
             </div></div>
       <div className='col-span-1 w-full border-l h-full flex flex-col'>

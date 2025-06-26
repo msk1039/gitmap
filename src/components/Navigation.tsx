@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+
 import { Home, Settings, GitBranchIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -9,7 +9,7 @@ interface NavigationProps {
   repositoryCount?: number;
 }
 
-export const Navigation: React.FC<NavigationProps> = ({ repositoryCount = 0 }) => {
+export const Navigation: React.FC<NavigationProps> = () => {
   const location = useLocation();
   
   const isActive = (path: string) => {
@@ -25,7 +25,7 @@ export const Navigation: React.FC<NavigationProps> = ({ repositoryCount = 0 }) =
         {/* Logo/Brand */}
         <div className="flex justify-center items-center gap-2 w-32 border-r h-full">
           <GitBranchIcon className="h-4 w-4 text-primary" />
-          <span className="text-sm font-medium">gitlocal</span>
+          <span className="text-sm font-medium">gitmap</span>
         </div>
         
         {/* Navigation Links */}
