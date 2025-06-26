@@ -71,7 +71,7 @@ impl DataStore {
                 let mut needs_update = false;
                 for collection in cache.collections.values_mut() {
                     if collection.color.is_empty() {
-                        collection.color = "#6366f1".to_string(); // Default indigo color
+                        collection.color = "#e5e7eb".to_string(); // Default light gray color
                         needs_update = true;
                     }
                 }

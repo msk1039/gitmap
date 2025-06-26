@@ -3,8 +3,10 @@ import { invoke } from '@tauri-apps/api/core';
 import { Collection } from '../types/repository';
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
-import { Plus, FolderOpen } from "lucide-react";
+import { Plus, FolderOpen, MoreVertical, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 interface CollectionsSidebarProps {
@@ -21,21 +23,24 @@ export const CollectionsSidebar: React.FC<CollectionsSidebarProps> = ({
   const [collections, setCollections] = useState<Collection[]>([]);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [newCollectionName, setNewCollectionName] = useState('');
-  const [selectedColor, setSelectedColor] = useState('#6366f1'); // Default indigo
+  const [selectedColor, setSelectedColor] = useState('#e5e7eb'); // Default light gray
   const [isCreating, setIsCreating] = useState(false);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [collectionToDelete, setCollectionToDelete] = useState<Collection | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
-  // Predefined color options
+  // Predefined color options with lighter, faint versions
   const colorOptions = [
-    { name: 'Indigo', value: '#6366f1' },
-    { name: 'Purple', value: '#8b5cf6' },
-    { name: 'Pink', value: '#ec4899' },
-    { name: 'Red', value: '#ef4444' },
-    { name: 'Orange', value: '#f97316' },
-    { name: 'Yellow', value: '#eab308' },
-    { name: 'Green', value: '#22c55e' },
-    { name: 'Emerald', value: '#10b981' },
-    { name: 'Teal', value: '#14b8a6' },
-    { name: 'Blue', value: '#3b82f6' },
+    { name: 'Default', value: '#e5e7eb' }, // Very light gray
+    { name: 'Gray', value: '#f3f4f6' },    // Lighter gray
+    { name: 'Brown', value: '#fef3c7' },   // Light amber/cream
+    { name: 'Orange', value: '#fed7aa' },  // Light orange/peach
+    { name: 'Yellow', value: '#fef08a' },  // Light yellow
+    { name: 'Green', value: '#bbf7d0' },   // Light green/mint
+    { name: 'Blue', value: '#bfdbfe' },    // Light blue/sky
+    { name: 'Purple', value: '#e9d5ff' },  // Light purple/lavender
+    { name: 'Pink', value: '#fce7f3' },    // Light pink/rose
+    { name: 'Red', value: '#fecaca' },     // Light red/coral
   ];
 
   useEffect(() => {
@@ -72,7 +77,7 @@ export const CollectionsSidebar: React.FC<CollectionsSidebarProps> = ({
       });
       await loadCollections();
       setNewCollectionName('');
-      setSelectedColor('#6366f1'); // Reset to default color
+      setSelectedColor('#e5e7eb'); // Reset to default color
       setIsCreateDialogOpen(false);
       toast.success('Collection created successfully');
     } catch (error) {
@@ -80,6 +85,40 @@ export const CollectionsSidebar: React.FC<CollectionsSidebarProps> = ({
     } finally {
       setIsCreating(false);
     }
+  };
+
+  const handleDeleteCollection = async () => {
+    if (!collectionToDelete) return;
+
+    try {
+      setIsDeleting(true);
+      await invoke('delete_collection', { 
+        collectionId: collectionToDelete.id 
+      });
+      await loadCollections();
+      setDeleteConfirmOpen(false);
+      setCollectionToDelete(null);
+      
+      // If the deleted collection was selected, switch to "all"
+      if (selectedCollection === collectionToDelete.id) {
+        onCollectionChange('all');
+      }
+      
+      toast.success('Collection deleted successfully');
+      
+      // Refresh the entire page to update badges
+      window.location.reload();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to delete collection');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const openDeleteConfirmation = (collection: Collection, event: React.MouseEvent) => {
+    event.stopPropagation();
+    setCollectionToDelete(collection);
+    setDeleteConfirmOpen(true);
   };
 
   const handleCollectionSelect = (collectionId: string) => {
@@ -91,9 +130,9 @@ export const CollectionsSidebar: React.FC<CollectionsSidebarProps> = ({
       <div className="mb-4">
         <h3 className="font-medium text-sm mb-3">Collections</h3>
         
-        <div className="space-y-2">
+        <div className="">
           {/* All repositories option */}
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center space-x-2 p-1 px-2">
             <input
               type="checkbox"
               id="all"
@@ -112,23 +151,53 @@ export const CollectionsSidebar: React.FC<CollectionsSidebarProps> = ({
 
           {/* Custom collections */}
           {collections.map((collection) => (
-            <div key={collection.id} className="flex items-center space-x-2">
-              <input
-                type="checkbox"
-                id={collection.id}
-                checked={selectedCollection === collection.id}
-                onChange={() => handleCollectionSelect(collection.id)}
-                className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
-              />
-              <label
-                htmlFor={collection.id}
-                className="text-sm font-medium cursor-pointer"
-              >
-                {collection.name}
-                <span className="text-xs text-muted-foreground ml-1">
-                  ({collection.repository_paths.length})
-                </span>
-              </label>
+            <div key={collection.id} className="group flex items-center justify-between space-x-2 p-1 px-2 rounded-md hover:bg-muted/100 transition-colors active">
+              <div className="flex items-center space-x-2 flex-1 min-w-0">
+                <input
+                  type="checkbox"
+                  id={collection.id}
+                  checked={selectedCollection === collection.id}
+                  onChange={() => handleCollectionSelect(collection.id)}
+                  className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                />
+                <label
+                  htmlFor={collection.id}
+                  className="text-sm font-medium cursor-pointer flex-1 truncate flex items-center "
+                >
+                  <span 
+                    className="inline-block w-3 h-3 rounded-full mr-2" 
+                    style={{ backgroundColor: collection.color }}
+                  ></span>
+                  {collection.name}
+                  <span className="text-xs text-muted-foreground">
+                    ({collection.repository_paths.length})
+                  </span>
+                </label>
+              </div>
+              
+              <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-6 w-6 p-0 hover:bg-muted"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <MoreVertical className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem
+                      className="text-red-600 focus:text-red-600 cursor-pointer font-medium"
+                      onClick={(e) => openDeleteConfirmation(collection, e)}
+                    >
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      Delete Collection
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
             </div>
           ))}
         </div>
@@ -198,7 +267,7 @@ export const CollectionsSidebar: React.FC<CollectionsSidebarProps> = ({
               onClick={() => {
                 setIsCreateDialogOpen(false);
                 setNewCollectionName('');
-                setSelectedColor('#6366f1'); // Reset to default color
+                setSelectedColor('#e5e7eb'); // Reset to default color
               }}
               disabled={isCreating}
             >
@@ -210,6 +279,32 @@ export const CollectionsSidebar: React.FC<CollectionsSidebarProps> = ({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Collection</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete the collection &quot;{collectionToDelete?.name}&quot;? 
+              This will remove the collection but will not delete the repositories themselves. 
+              This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteCollection}
+              disabled={isDeleting}
+              className="bg-red-600 hover:bg-red-700 focus:ring-red-600"
+            >
+              {isDeleting ? 'Deleting...' : 'Delete Collection'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

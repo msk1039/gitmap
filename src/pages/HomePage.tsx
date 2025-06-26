@@ -152,9 +152,12 @@ export const HomePage: React.FC = () => {
 
             <div className='col-span-1 w-full h-screen border-r flex flex-col items-center sticky top-0 bg-background pt-12'>
               {/* collections list sidebar */}
-              <div className='flex flex-col items-center justify-center px-4 border-t border-b py-4 mt-30'>
+              <div className='flex flex-col items-center justify-center mt-30 border-t border-b pt-4'>
+                <div className='flex flex-col items-center justify-center px-4'>
+
               <h2 className='text-lg font-semibold mb-4'>Collections</h2>
               <p className='text-sm text-muted-foreground'>Manage your collections of repositories</p>
+                </div>
               
 
               {/* render the collection list here */}
@@ -230,12 +233,12 @@ export const HomePage: React.FC = () => {
                 </div>
 
 
-                <div className="flex items-center gap-2 justify-center items-center">
+                <div className="flex gap-2 justify-center items-center">
                   <Button
                     onClick={handleShowScanDialog}
                     disabled={isScanning}
                     size="sm"
-                    className="gap-2 h-10 hover:cursor-pointer"
+                    className="gap-2 h-10 hover:cursor-pointer shadow-sm"
                   >
                     {isScanning ? (
                       <RefreshCw className="h-4 w-4 animate-spin" />
@@ -249,7 +252,7 @@ export const HomePage: React.FC = () => {
                     disabled={isScanning}
                     variant="outline"
                     size="sm"
-                    className="gap-2 h-10 hover:cursor-pointer"
+                    className="gap-2 h-10 hover:cursor-pointer shadow-sm"
                   >
                     <RefreshCw className="h-4 w-4" />
                     Refresh

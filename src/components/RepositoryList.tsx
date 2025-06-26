@@ -114,7 +114,7 @@ export const RepositoryList: React.FC<RepositoryListProps> = ({
           onClick={() => onRepositoryClick?.(repo.path, repo.name)}
         >
           <div className="flex items-center justify-between gap-4">
-            <div className="flex flex-col items-start flex-1 min-w-0">
+            <div className="flex flex-col items-start justify-between flex-1 min-w-0">
               <div className="flex items-baseline gap-2 mb-2">
                 <h3 className="font-semibold truncate">{repo.name}</h3>
                 {repo.is_pinned && (
@@ -283,8 +283,8 @@ export const RepositoryList: React.FC<RepositoryListProps> = ({
       <div className="space-y-4">
         {/* Pinned Repositories Section */}
         {pinnedRepositories.length > 0 && (
-          <div className="border">
-            <div className="bg-amber-50 border-b px-4 py-2">
+          <div className="border bg-amber-50">
+            <div className="bg-amber-50 px-4 pt-2">
               <div className="flex items-center gap-2">
                 <Pin className="h-4 w-4 text-amber-600" fill="currentColor" />
                 <h2 className="text-sm font-medium text-amber-800">
@@ -292,7 +292,7 @@ export const RepositoryList: React.FC<RepositoryListProps> = ({
                 </h2>
               </div>
             </div>
-            <ul className='p-2 inset-ring-4 inset-ring-amber-50'>
+            <ul className='m-2 border-1 rounded-xl bg-background shadow-sm'>
               {pinnedRepositories.map(renderRepository)}
             </ul>
           </div>
@@ -300,15 +300,15 @@ export const RepositoryList: React.FC<RepositoryListProps> = ({
         
         {/* Regular Repositories Section */}
         {unpinnedRepositories.length > 0 && (
-          <div className="border">
+          <div className="border bg-muted/50">
             {pinnedRepositories.length > 0 && (
-              <div className="bg-muted/50 border-b px-4 py-2">
+              <div className="bg-muted/50 px-4 pt-2">
                 <h2 className="text-sm font-medium text-muted-foreground">
                   All Repositories ({unpinnedRepositories.length})
                 </h2>
               </div>
             )}
-            <ul>
+            <ul className='m-2 border-1 rounded-xl bg-background shadow-sm'>
               {unpinnedRepositories.map(renderRepository)}
             </ul>
           </div>

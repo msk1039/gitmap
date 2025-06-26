@@ -80,7 +80,7 @@ export const SettingsPage: React.FC = () => {
         <aside className="md:w-32 w-4 border-r"></aside>
         
         <main className="h-full grow flex flex-col">
-          <div className="mx-auto md:max-w-4xl w-full flex flex-col p-6">
+          <div className="mx-auto md:max-w-4xl w-full flex flex-col p-6 border-l border-r bg-amber-50" >
             {/* Title Section */}
             <div className="mb-8">
               <h1 className="text-2xl font-bold">Settings</h1>
@@ -90,7 +90,7 @@ export const SettingsPage: React.FC = () => {
             </div>
 
             {/* Cache Information Card */}
-            <Card className="mb-6 rounded-lg shadow-sm">
+            <Card className="mb-6 rounded-xl shadow-sm">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Database className="h-5 w-5" />
@@ -162,7 +162,7 @@ export const SettingsPage: React.FC = () => {
             </Card>
 
             {/* Data Management Card */}
-            <Card>
+            <Card className="rounded-xl shadow-sm">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Trash2 className="h-5 w-5" />

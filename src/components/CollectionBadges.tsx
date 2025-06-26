@@ -44,7 +44,7 @@ export const CollectionBadges: React.FC<CollectionBadgesProps> = ({ repositoryPa
         <Badge 
           key={collection.id} 
           variant="secondary" 
-          className="text-xs text-white border-sm" 
+          className="text-xs text-gray-700 border-sm" 
           style={{ backgroundColor: collection.color }}
         >
           {collection.name}
