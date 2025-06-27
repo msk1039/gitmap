@@ -3,6 +3,15 @@ use chrono::{DateTime, Utc};
 use std::collections::HashMap;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct NodeModulesInfo {
+    pub total_size_mb: f64,
+    pub count: u32,
+    pub paths: Vec<String>,
+    pub last_scanned: DateTime<Utc>,
+    pub package_json_modified: DateTime<Utc>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct GitRepository {
     pub name: String,
     pub path: String,
@@ -18,6 +27,7 @@ pub struct GitRepository {
     pub is_valid: bool, // Whether the repository still exists and is accessible
     pub is_pinned: bool, // Whether the repository is pinned
     pub pinned_at: Option<DateTime<Utc>>, // When it was pinned
+    pub node_modules_info: Option<NodeModulesInfo>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]

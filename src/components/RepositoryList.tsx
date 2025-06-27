@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
-import { GitRepository, Collection } from '../types/repository';
+import { GitRepository } from '../types/repository';
 import { Button } from "@/components/ui/button";
 import { Toggle } from "@/components/ui/toggle";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { CollectionAssignmentDialog } from './CollectionAssignmentDialog';
 import { CollectionBadges } from './CollectionBadges';
-import { GitBranch, Folder, FolderOpen, Pin, Tags, RefreshCw } from "lucide-react";
+import { GitBranch, Folder, FolderOpen, Pin, Tags, RefreshCw, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { HardDrive } from 'lucide-react';
 import { GitCommitVertical } from 'lucide-react';
@@ -20,8 +21,8 @@ interface RepositoryListProps {
   onCollectionChange?: () => void;
   collectionRefreshTrigger?: number;
   isLoading?: boolean;
-  allCollections?: Collection[];
   isInitialLoad?: boolean; // Add this to distinguish initial load from collection switching
+  onDeleteNodeModules?: (repoPath: string) => Promise<void>;
 }
 
 export const RepositoryList: React.FC<RepositoryListProps> = ({ 
@@ -33,11 +34,15 @@ export const RepositoryList: React.FC<RepositoryListProps> = ({
   onCollectionChange,
   collectionRefreshTrigger,
   isLoading = false,
-  allCollections,
-  isInitialLoad = false
+  isInitialLoad = false,
+  onDeleteNodeModules
 }) => {
   const [collectionDialogOpen, setCollectionDialogOpen] = useState(false);
   const [selectedRepository, setSelectedRepository] = useState<GitRepository | null>(null);
+  const [deleteNodeModulesDialogOpen, setDeleteNodeModulesDialogOpen] = useState(false);
+  const [repositoryToDeleteNodeModules, setRepositoryToDeleteNodeModules] = useState<GitRepository | null>(null);
+  const [isDeletingNodeModules, setIsDeletingNodeModules] = useState(false);
+  const [deletingRepositoryPaths, setDeletingRepositoryPaths] = useState<Set<string>>(new Set());
 
   // Debug logging with performance timing
   console.log('🎨 RepositoryList rendered with:', repositories.length, 'repositories');
@@ -62,6 +67,13 @@ export const RepositoryList: React.FC<RepositoryListProps> = ({
       .slice(0, 2)
       .map(([ext]) => ext)
       .join(', ');
+  };
+
+  const handleDeleteNodeModules = async (repo: GitRepository) => {
+    if (!onDeleteNodeModules) return;
+    
+    setRepositoryToDeleteNodeModules(repo);
+    setDeleteNodeModulesDialogOpen(true);
   };
 
   if (isLoading) {
@@ -129,12 +141,23 @@ export const RepositoryList: React.FC<RepositoryListProps> = ({
 
   const renderRepository = (repo: GitRepository) => {
     const topFileTypes = getTopFileTypes(repo.file_types);
+    const isDeleting = deletingRepositoryPaths.has(repo.path);
     
     return (
-      <li key={repo.path} className="border-b last:border-b-0 hover:shadow-sm transition-shadow bg-white/80 hover:bg-white">
+      <li key={repo.path} className="border-b last:border-b-0 hover:shadow-sm transition-shadow bg-white/80 hover:bg-white relative">
+        {/* Loading overlay when deleting node_modules */}
+        {isDeleting && (
+          <div className="absolute inset-0 bg-white/80 backdrop-blur-sm flex items-center justify-center z-10 rounded">
+            <div className="flex items-center gap-2 bg-white px-3 py-2 rounded-lg shadow-md border">
+              <RefreshCw className="h-4 w-4 animate-spin text-blue-500" />
+              <span className="text-sm font-medium text-gray-700">Deleting node_modules...</span>
+            </div>
+          </div>
+        )}
+        
         <div
-          className="block p-4 text-sm font-medium transition-colors cursor-pointer group"
-          onClick={() => onRepositoryClick?.(repo.path, repo.name)}
+          className={`block p-4 text-sm font-medium transition-colors cursor-pointer group ${isDeleting ? 'pointer-events-none opacity-50' : ''}`}
+          onClick={() => !isDeleting && onRepositoryClick?.(repo.path, repo.name)}
         >
           <div className="flex items-center justify-between gap-4">
             <div className="flex flex-col items-start justify-between flex-1 min-w-0">
@@ -201,7 +224,7 @@ export const RepositoryList: React.FC<RepositoryListProps> = ({
                 <CollectionBadges 
                   repositoryPath={repo.path} 
                   refreshTrigger={collectionRefreshTrigger} 
-                  allCollections={allCollections}
+                  // allCollections={allCollections}
                 />
               </div>
             </div>
@@ -211,6 +234,36 @@ export const RepositoryList: React.FC<RepositoryListProps> = ({
                    {/* <div className="">
                 <CollectionBadges repositoryPath={repo.path} refreshTrigger={collectionRefreshTrigger} />
               </div> */}
+
+                  {/* Delete Node Modules Button - Only show if repository has node_modules */}
+                {repo.node_modules_info && repo.node_modules_info.count > 0 && onDeleteNodeModules && (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-8 p-0 opacity-0 group-hover:opacity-100 transition-opacity text-red-400 hover:text-red-700  border-dashed border border-red-400/50"
+                        disabled={isDeleting}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (!isDeleting) {
+                            handleDeleteNodeModules(repo);
+                          }
+                        }}
+                      >
+                        {isDeleting ? (
+                          <RefreshCw className="h-3 w-3 animate-spin" />
+                        ) : (
+                          // <div className='flex px-1 gap-1 items-center justify-center'><Trash2 className="h-3 w-3" /> <span className='text-sm'>node_modules</span></div>
+                          <div className='flex px-1 gap-1 items-center justify-center'><span className='text-sm font-medium'>Free up {formatSize(repo.node_modules_info.total_size_mb)}</span></div>
+                        )}
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>{isDeleting ? 'Deleting...' : `Delete node_modules (${formatSize(repo.node_modules_info.total_size_mb)})`}</p>
+                    </TooltipContent>
+                  </Tooltip>
+                )}
 
                 <Tooltip>
                   <TooltipTrigger asChild>
@@ -275,6 +328,8 @@ export const RepositoryList: React.FC<RepositoryListProps> = ({
                     </TooltipContent>
                   </Tooltip>
                 )}
+
+            
 
                 <Tooltip>
                   <TooltipTrigger asChild>
@@ -365,6 +420,55 @@ export const RepositoryList: React.FC<RepositoryListProps> = ({
             onCollectionChange?.();
           }}
         />
+      )}
+
+      {/* Delete node_modules Confirmation Dialog */}
+      {repositoryToDeleteNodeModules && (
+        <AlertDialog open={deleteNodeModulesDialogOpen} onOpenChange={setDeleteNodeModulesDialogOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete node_modules?</AlertDialogTitle>
+              <AlertDialogDescription>
+                This will permanently delete the <code>node_modules</code> folder(s) in "{repositoryToDeleteNodeModules.name}". 
+                {repositoryToDeleteNodeModules.node_modules_info && (
+                  <span> This will free up {formatSize(repositoryToDeleteNodeModules.node_modules_info.total_size_mb)} of space.</span>
+                )}
+                <br /><br />
+                This action cannot be undone, but you can reinstall dependencies by running <code>npm install</code> or <code>yarn install</code>.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={isDeletingNodeModules}>Cancel</AlertDialogCancel>
+              <AlertDialogAction 
+                onClick={async () => {
+                  if (repositoryToDeleteNodeModules && onDeleteNodeModules) {
+                    setIsDeletingNodeModules(true);
+                    setDeletingRepositoryPaths(prev => new Set(prev).add(repositoryToDeleteNodeModules.path));
+                    try {
+                      await onDeleteNodeModules(repositoryToDeleteNodeModules.path);
+                      toast.success(`node_modules deleted successfully from ${repositoryToDeleteNodeModules.name}`);
+                    } catch (error) {
+                      toast.error(`Failed to delete node_modules: ${error}`);
+                    } finally {
+                      setIsDeletingNodeModules(false);
+                      setDeletingRepositoryPaths(prev => {
+                        const newSet = new Set(prev);
+                        newSet.delete(repositoryToDeleteNodeModules.path);
+                        return newSet;
+                      });
+                      setDeleteNodeModulesDialogOpen(false);
+                      setRepositoryToDeleteNodeModules(null);
+                    }
+                  }
+                }}
+                disabled={isDeletingNodeModules}
+                className="bg-red-600 hover:bg-red-700"
+              >
+                {isDeletingNodeModules ? "Deleting..." : "Yes, delete"}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       )}
     </>
   );

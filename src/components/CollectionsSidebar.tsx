@@ -134,7 +134,7 @@ export const CollectionsSidebar: React.FC<CollectionsSidebarProps> = ({
         
         <div className="">
           {/* All repositories option */}
-          <div className={`flex items-center space-x-2 px-2  rounded-lg border-1` + (selectedCollection === "all" ? ' bg-background shadow-sm' : ' hover:bg-muted/100 transition-colors')}>
+          <div className={`flex items-center space-x-2 px-2  rounded-lg border-1 shadow-lime-600/20` + (selectedCollection === "all" ? ' bg-background shadow-md' : ' hover:bg-muted/100 transition-colors')}>
             <input
               type="checkbox"
               id="all"
@@ -156,7 +156,7 @@ export const CollectionsSidebar: React.FC<CollectionsSidebarProps> = ({
 
           {/* Custom collections */}
           {collections.map((collection) => (
-            <div key={collection.id} className={`group flex items-center justify-between space-x-2 my-2 rounded-lg hover:bg-muted/100 transition-colors border-1 ${selectedCollection === collection.id ? 'bg-background shadow-sm' : ''} `}>
+            <div key={collection.id} className={`group flex items-center justify-between space-x-2 my-2 rounded-lg hover:bg-white transition-colors border-1 shadow-lime-600/30 ${selectedCollection === collection.id ? 'bg-background shadow-md ' : ''} `}>
               <div className="flex items-center space-x-2 flex-1 min-w-0 h-10 px-2">
                 <input
                   type="checkbox"
@@ -218,76 +218,106 @@ export const CollectionsSidebar: React.FC<CollectionsSidebarProps> = ({
       {/* New Collection Button */}
       <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
         <DialogTrigger asChild>
-          <Button variant="outline" size="sm" className="w-full gap-2 h-10 rounded-md bg-transparent border-green-600/20 mt-1">
-            <Plus className="h-4 w-4" />
-            New Collection
+          <Button 
+        variant="outline" 
+        size="sm" 
+        className="w-full gap-2 h-10 rounded-lg bg-gradient-to-r from-emerald-50 to-teal-50 border-emerald-200/50 hover:from-emerald-100 hover:to-teal-100 hover:border-emerald-300/60 transition-all duration-200 text-emerald-700 hover:text-emerald-800 shadow-sm hover:shadow-md mt-2"
+          >
+        <Plus className="h-4 w-4" />
+        New Collection
           </Button>
         </DialogTrigger>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Create New Collection</DialogTitle>
+        <DialogContent className='w-[480px] bg-gradient-to-br from-white to-gray-50'>
+          <DialogHeader className="text-center pb-2">
+        <DialogTitle className="text-xl font-semibold bg-gradient-to-r from-gray-800 to-gray-600 bg-clip-text text-transparent">
+          Create New Collection
+        </DialogTitle>
+        <p className="text-sm text-muted-foreground mt-1">
+          Organize your repositories with a custom collection
+        </p>
           </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <div className="grid grid-cols-4 items-center gap-4">
-              <label htmlFor="name" className="text-right">
-                Name
-              </label>
-              <Input
-                id="name"
-                placeholder="Enter collection name"
-                value={newCollectionName}
-                onChange={(e) => setNewCollectionName(e.target.value)}
-                className="col-span-3"
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    handleCreateCollection();
-                  }
-                }}
-              />
+          <div className="grid gap-6 py-4">
+        <div className="space-y-4">
+          <label htmlFor="name" className="text-lg font-medium text-gray-700">
+            Collection Name
+          </label>
+          <Input
+            id="name"
+            placeholder="Enter a descriptive name..."
+            value={newCollectionName}
+            onChange={(e) => setNewCollectionName(e.target.value)}
+            className="h-11 rounded-lg border-gray-200 focus:border-emerald-300 focus:ring-emerald-200 transition-all duration-200"
+            onKeyDown={(e) => {
+          if (e.key === 'Enter') {
+            handleCreateCollection();
+          }
+            }}
+          />
+        </div>
+        
+        <div className="space-y-4">
+          <label className="text-lg font-medium text-gray-700">
+            Choose Color Theme
+          </label>
+          <div className="space-y-3">
+            <div className="grid grid-cols-5 gap-3 p-4 bg-white rounded-lg border border-gray-100 shadow-sm">
+          {colorOptions.map((color) => (
+            <button
+              key={color.value}
+              type="button"
+              onClick={() => setSelectedColor(color.value)}
+              className={`w-10 h-10 rounded-full border-2 transition-all duration-200 hover:scale-110 ${
+            selectedColor === color.value 
+              ? 'border-gray-400 ring-3 ring-emerald-200 scale-110 shadow-lg' 
+              : 'border-gray-200 hover:border-gray-300 shadow-sm hover:shadow-md'
+              }`}
+              style={{ backgroundColor: color.value }}
+              title={color.name}
+            />
+          ))}
             </div>
-            
-            <div className="grid grid-cols-4 items-start gap-4">
-              <label className="text-right text-sm font-medium mt-2">
-                Color
-              </label>
-              <div className="col-span-3">
-                <div className="grid grid-cols-5 gap-2">
-                  {colorOptions.map((color) => (
-                    <button
-                      key={color.value}
-                      type="button"
-                      onClick={() => setSelectedColor(color.value)}
-                      className={`w-8 h-8 rounded-full border-2 transition-all ${
-                        selectedColor === color.value 
-                          ? 'border-gray-400 ring-2 ring-offset-2 ring-gray-400' 
-                          : 'border-gray-200 hover:border-gray-300'
-                      }`}
-                      style={{ backgroundColor: color.value }}
-                      title={color.name}
-                    />
-                  ))}
-                </div>
-                <div className="mt-2 text-xs text-muted-foreground">
-                  Selected: {colorOptions.find(c => c.value === selectedColor)?.name}
-                </div>
-              </div>
+            <div className="flex items-center gap-2 px-3 py-2 bg-emerald-50 rounded-lg border border-emerald-100">
+          <div 
+            className="w-4 h-4 rounded-full border border-emerald-200" 
+            style={{ backgroundColor: selectedColor }}
+          />
+          <span className="text-sm font-medium text-emerald-700">
+            {colorOptions.find(c => c.value === selectedColor)?.name} Theme
+          </span>
             </div>
           </div>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => {
-                setIsCreateDialogOpen(false);
-                setNewCollectionName('');
-                setSelectedColor('#e5e7eb'); // Reset to default color
-              }}
-              disabled={isCreating}
-            >
-              Cancel
-            </Button>
-            <Button onClick={handleCreateCollection} disabled={isCreating}>
-              {isCreating ? 'Creating...' : 'Create Collection'}
-            </Button>
+        </div>
+          </div>
+          <DialogFooter className="gap-3 pt-4 border-t border-gray-100">
+        <Button
+          variant="outline"
+          onClick={() => {
+            setIsCreateDialogOpen(false);
+            setNewCollectionName('');
+            setSelectedColor('#e5e7eb');
+          }}
+          disabled={isCreating}
+          className="px-6 h-10 rounded-lg border-gray-200 hover:bg-gray-50 transition-colors duration-200"
+        >
+          Cancel
+        </Button>
+        <Button 
+          onClick={handleCreateCollection} 
+          disabled={isCreating || !newCollectionName.trim()}
+          className="px-6 h-10 rounded-lg bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white shadow-sm hover:shadow-md transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {isCreating ? (
+            <>
+          <Loader2 className="h-4 w-4 animate-spin mr-2" />
+          Creating...
+            </>
+          ) : (
+            <>
+          <Plus className="h-4 w-4 mr-2" />
+          Create Collection
+            </>
+          )}
+        </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

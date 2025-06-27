@@ -443,6 +443,56 @@ async fn open_cache_in_file_manager(_state: State<'_, AppState>) -> Result<(), S
     Ok(())
 }
 
+#[command]
+async fn delete_node_modules(repo_path: String, _state: State<'_, AppState>) -> Result<(), String> {
+    use std::fs;
+    use walkdir::WalkDir;
+    
+    let repo_path = Path::new(&repo_path);
+    
+    if !repo_path.exists() {
+        return Err("Repository path does not exist".to_string());
+    }
+    
+    // Look for node_modules directories in the repository
+    let walker = WalkDir::new(repo_path)
+        .max_depth(3) // Don't go too deep to avoid nested node_modules
+        .into_iter()
+        .filter_map(|e| e.ok())
+        .filter(|entry| {
+            entry.file_type().is_dir() && 
+            entry.file_name() == "node_modules"
+        });
+    
+    let mut deleted_count = 0;
+    let mut errors = Vec::new();
+    
+    for entry in walker {
+        let node_modules_path = entry.path();
+        match fs::remove_dir_all(node_modules_path) {
+            Ok(_) => {
+                deleted_count += 1;
+                println!("Deleted node_modules at: {}", node_modules_path.display());
+            }
+            Err(e) => {
+                let error_msg = format!("Failed to delete {}: {}", node_modules_path.display(), e);
+                errors.push(error_msg);
+            }
+        }
+    }
+    
+    if !errors.is_empty() {
+        return Err(format!("Deleted {} node_modules directories but encountered errors: {}", 
+                          deleted_count, errors.join("; ")));
+    }
+    
+    if deleted_count == 0 {
+        return Err("No node_modules directories found to delete".to_string());
+    }
+    
+    Ok(())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     match GitScanner::new() {
@@ -482,7 +532,8 @@ pub fn run() {
                     delete_collection,
                     get_repositories_in_collection,
                     get_cache_file_path,
-                    open_cache_in_file_manager
+                    open_cache_in_file_manager,
+                    delete_node_modules
                 ])
                 .run(tauri::generate_context!())
                 .expect("error while running tauri application");

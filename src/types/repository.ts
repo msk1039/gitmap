@@ -1,3 +1,11 @@
+export interface NodeModulesInfo {
+  total_size_mb: number;
+  count: number;
+  paths: string[];
+  last_scanned: string;
+  package_json_modified: string;
+}
+
 export interface FileEntry {
   name: string;
   path: string;
@@ -26,6 +34,7 @@ export interface GitRepository {
   is_valid: boolean;
   is_pinned: boolean;
   pinned_at?: string;
+  node_modules_info?: NodeModulesInfo;
 }
 
 export interface ScanProgress {

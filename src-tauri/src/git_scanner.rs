@@ -1,4 +1,4 @@
-use crate::repo_types::{GitRepository, ScanProgress};
+use crate::repo_types::{GitRepository, ScanProgress, NodeModulesInfo};
 use crate::data_store::DataStore;
 use std::path::{Path, PathBuf};
 use walkdir::WalkDir;
@@ -238,6 +238,10 @@ impl GitScanner {
     }
 
     pub fn analyze_repository(&self, repo_path: &Path) -> Result<GitRepository, String> {
+        self.analyze_repository_with_cache(repo_path, None)
+    }
+
+    pub fn analyze_repository_with_cache(&self, repo_path: &Path, existing_repo: Option<&GitRepository>) -> Result<GitRepository, String> {
         let repo = Repository::open(repo_path)
             .map_err(|e| format!("Failed to open git repository: {}", e))?;
 
@@ -258,6 +262,14 @@ impl GitScanner {
         let (current_branch, branches, remote_url, commit_count, last_commit_date) = 
             self.get_git_info(&repo)?;
 
+        // Check if we should scan node_modules
+        let node_modules_info = if self.should_scan_node_modules(repo_path, existing_repo)? {
+            self.scan_node_modules(repo_path)?
+        } else {
+            // Preserve existing node_modules info if we don't need to rescan
+            existing_repo.and_then(|repo| repo.node_modules_info.clone())
+        };
+
         Ok(GitRepository {
             name,
             path: repo_path.to_string_lossy().to_string(),
@@ -272,6 +284,7 @@ impl GitScanner {
             is_valid: true,
             is_pinned: false, // Default to unpinned for new repositories
             pinned_at: None,
+            node_modules_info,
         })
     }
 
@@ -280,7 +293,8 @@ impl GitScanner {
         let cache = self.data_store.load_cache()?;
         let existing_repo = cache.repositories.get(repo_path);
         
-        let mut updated_repo = self.analyze_repository(Path::new(repo_path))?;
+        // Force node_modules re-scan by passing None as existing repo for node_modules scanning
+        let mut updated_repo = self.analyze_repository_with_cache_force_node_modules(Path::new(repo_path), existing_repo)?;
         
         // Preserve pin state from existing repository
         if let Some(existing) = existing_repo {
@@ -312,7 +326,7 @@ impl GitScanner {
             // Check if the repository still exists
             if repo_path.exists() && repo_path.join(".git").exists() {
                 // Repository exists, refresh its data
-                match self.analyze_repository(repo_path) {
+                match self.analyze_repository_with_cache(repo_path, Some(repo)) {
                     Ok(mut updated_repo) => {
                         // Preserve pin state from existing repository
                         updated_repo.is_pinned = repo.is_pinned;
@@ -470,5 +484,133 @@ impl GitScanner {
         }
 
         Ok((current_branch, branches, remote_url, commit_count, last_commit_date))
+    }
+
+    fn should_scan_node_modules(&self, repo_path: &Path, existing_repo: Option<&GitRepository>) -> Result<bool, String> {
+        let package_json_path = repo_path.join("package.json");
+        
+        // If no package.json exists, no need to scan node_modules
+        if !package_json_path.exists() {
+            return Ok(false);
+        }
+        
+        // Get package.json modification time
+        let package_json_metadata = fs::metadata(&package_json_path)
+            .map_err(|e| format!("Failed to read package.json metadata: {}", e))?;
+        let package_json_modified = package_json_metadata.modified()
+            .map_err(|e| format!("Failed to get package.json modification time: {}", e))?;
+        let package_json_modified_utc = DateTime::<Utc>::from(package_json_modified);
+        
+        // If this is a new repository or we don't have node_modules info, scan it
+        if let Some(existing) = existing_repo {
+            if let Some(node_modules_info) = &existing.node_modules_info {
+                // Check if package.json was modified after our last scan
+                return Ok(package_json_modified_utc > node_modules_info.package_json_modified);
+            }
+        }
+        
+        // First time scanning or no existing node_modules info
+        Ok(true)
+    }
+
+    fn scan_node_modules(&self, repo_path: &Path) -> Result<Option<NodeModulesInfo>, String> {
+        let package_json_path = repo_path.join("package.json");
+        
+        // If no package.json exists, return None
+        if !package_json_path.exists() {
+            return Ok(None);
+        }
+        
+        // Get package.json modification time
+        let package_json_metadata = fs::metadata(&package_json_path)
+            .map_err(|e| format!("Failed to read package.json metadata: {}", e))?;
+        let package_json_modified = package_json_metadata.modified()
+            .map_err(|e| format!("Failed to get package.json modification time: {}", e))?;
+        let package_json_modified_utc = DateTime::<Utc>::from(package_json_modified);
+        
+        let mut node_modules_paths = Vec::new();
+        let mut total_size_mb = 0.0;
+        let mut count = 0;
+        
+        // Look for node_modules directories in the repository
+        let walker = WalkDir::new(repo_path)
+            .max_depth(3) // Don't go too deep to avoid nested node_modules
+            .into_iter()
+            .filter_map(|e| e.ok())
+            .filter(|entry| {
+                entry.file_type().is_dir() && 
+                entry.file_name() == "node_modules"
+            });
+        
+        for entry in walker {
+            let node_modules_path = entry.path();
+            
+            // Calculate size of this node_modules directory
+            match self.get_directory_size(node_modules_path) {
+                Ok(size_mb) => {
+                    total_size_mb += size_mb;
+                    count += 1;
+                    node_modules_paths.push(node_modules_path.to_string_lossy().to_string());
+                }
+                Err(e) => {
+                    // Log error but continue with other node_modules directories
+                    eprintln!("Failed to calculate size for {}: {}", node_modules_path.display(), e);
+                }
+            }
+        }
+        
+        if count > 0 {
+            Ok(Some(NodeModulesInfo {
+                total_size_mb,
+                count,
+                paths: node_modules_paths,
+                last_scanned: Utc::now(),
+                package_json_modified: package_json_modified_utc,
+            }))
+        } else {
+            Ok(None)
+        }
+    }
+    
+    pub fn analyze_repository_with_cache_force_node_modules(&self, repo_path: &Path, existing_repo: Option<&GitRepository>) -> Result<GitRepository, String> {
+        let repo = Repository::open(repo_path)
+            .map_err(|e| format!("Failed to open git repository: {}", e))?;
+
+        // Get repository name from the directory name
+        let name = repo_path
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or("Unknown")
+            .to_string();
+
+        // Calculate directory size
+        let size_mb = self.get_directory_size(repo_path)?;
+
+        // Get file types
+        let file_types = self.get_file_types(repo_path);
+
+        // Get git information
+        let (current_branch, branches, remote_url, commit_count, last_commit_date) = 
+            self.get_git_info(&repo)?;
+
+        // Force node_modules scan (ignore existing cache)
+        let node_modules_info = self.scan_node_modules(repo_path)?;
+
+        Ok(GitRepository {
+            name,
+            path: repo_path.to_string_lossy().to_string(),
+            size_mb,
+            file_types,
+            last_commit_date,
+            current_branch,
+            branches,
+            remote_url,
+            commit_count,
+            last_analyzed: Utc::now(),
+            is_valid: true,
+            is_pinned: false, // Default to unpinned for new repositories
+            pinned_at: None,
+            node_modules_info,
+        })
     }
 }

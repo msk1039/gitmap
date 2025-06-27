@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useRepositoryManager } from '../hooks/useRepositoryManager';
-import { GitRepository, Collection } from '../types/repository';
+import { GitRepository } from '../types/repository';
 import { RepositoryList } from '../components/RepositoryList';
 import { ScanProgress } from '../components/ScanProgress';
 import { ScanDirectoryManager } from '../components/ScanDirectoryManager';
@@ -23,7 +23,6 @@ export const HomePage: React.FC = () => {
   const [selectedCollection, setSelectedCollection] = useState<string>('all');
   const [collectionRepositories, setCollectionRepositories] = useState<GitRepository[]>([]);
   const [collectionsRefreshTrigger, setCollectionsRefreshTrigger] = useState(0);
-  const [allCollections, setAllCollections] = useState<Collection[]>([]);
   const [isLoadingCollection, setIsLoadingCollection] = useState(false);
   const [isInitialLoading, setIsInitialLoading] = useState(true);
   
@@ -38,7 +37,18 @@ export const HomePage: React.FC = () => {
     openInFileManager,
     togglePin,
     loadCachedRepositories,
+    refreshRepository,
   } = useRepositoryManager();
+
+  const handleDeleteNodeModules = async (repoPath: string) => {
+    try {
+      await invoke('delete_node_modules', { repoPath });
+      // Refresh the specific repository to update node_modules info
+      await refreshRepository(repoPath);
+    } catch (error) {
+      throw error; // Re-throw so the component can handle it
+    }
+  };
 
   // Refresh repositories when component mounts
   useEffect(() => {
@@ -47,22 +57,12 @@ export const HomePage: React.FC = () => {
       setIsInitialLoading(true);
       try {
         await loadCachedRepositories();
-        await loadAllCollections();
       } finally {
         setIsInitialLoading(false);
       }
     };
     loadInitialData();
   }, [loadCachedRepositories]);
-
-  const loadAllCollections = async () => {
-    try {
-      const collections = await invoke<Collection[]>('get_collections');
-      setAllCollections(collections);
-    } catch (error) {
-      console.error('Failed to load collections:', error);
-    }
-  };
 
   const filteredAndSortedRepositories = useMemo(() => {
     const startTime = performance.now();
@@ -193,9 +193,9 @@ export const HomePage: React.FC = () => {
         <main className="h-full grow flex flex-col">
           <div className="grid grid-cols-5 gap-4 w-full">
 
-            <div className='col-span-1 w-full h-screen border-r flex flex-col items-center sticky top-0 bg-background pt-12'>
+            <div className='col-span-1 w-full h-screen border-r flex flex-col items-center sticky top-0 bg-background pt-16'>
               {/* collections list sidebar */}
-              <div className='flex flex-col items-center justify-center mt-30 border-t border-b p-4 w-full bg-[#f7faf6]' >
+              <div className='flex flex-col items-center justify-center mt-40 border-t border-b p-4 w-full bg-[#f7faf6] inset-shadow-sm inset-shadow-lime-600/50'>
                 <div className='flex flex-col items-center justify-center px-4 mb-2'>
 
               <h2 className='text-lg font-semibold'>Collections</h2>
@@ -215,8 +215,8 @@ export const HomePage: React.FC = () => {
               </div>
             </div>
             {/* Title and Controls Section */}
-            <div className='col-span-3 w-full flex flex-col py-6'>
-            <div className="flex flex-col gap-4">
+            <div className='col-span-3 w-full flex flex-col'>
+            <div className="flex flex-col gap-4 sticky top-6 bg-background z-2">
               <div className="pt-12">
                 <div className='my-5'>
                   <h1 className="text-2xl font-bold">Local Repositories</h1>
@@ -228,7 +228,7 @@ export const HomePage: React.FC = () => {
                 
 
             
-              <div className="grid lg:grid-cols-3  grid-cols-1 border w-full h-50 lg:h-15">
+              <div className="grid lg:grid-cols-3  grid-cols-1 border w-full h-50 lg:h-15 shadow-md">
 
                <div className="flex items-center justify-center gap-2 border-r border-b lg:border-b-0">
                   <ArrowUpDown className="h-4 w-4 text-muted-foreground" />
@@ -277,7 +277,7 @@ export const HomePage: React.FC = () => {
                 </div>
 
 
-                <div className="flex gap-2 justify-center items-center">
+                <div className="grid grid-cols-2 gap-2 justify-center items-center px-2">
                  
                   <Tooltip>
                     <TooltipTrigger asChild>
@@ -285,7 +285,7 @@ export const HomePage: React.FC = () => {
                     onClick={handleShowScanDialog}
                     disabled={isScanning}
                     size="sm"
-                    className="gap-2 h-10 hover:cursor-pointer shadow-sm"
+                    className="gap-2 h-10 hover:cursor-pointer"
                   >
                     {isScanning ? (
                       <RefreshCw className="h-4 w-4 animate-spin" />
@@ -338,7 +338,7 @@ export const HomePage: React.FC = () => {
             </div>
 
             {/* Repository Grid */}
-            <div className="w-full">
+            <div className="w-full mt-6">
               <RepositoryList
                 repositories={filteredAndSortedRepositories}
                 onRepositoryClick={handleRepositoryClick}
@@ -348,8 +348,8 @@ export const HomePage: React.FC = () => {
                 onCollectionChange={handleCollectionAssignmentChange}
                 collectionRefreshTrigger={collectionsRefreshTrigger}
                 isLoading={(isScanning && !scanProgress) || isLoadingCollection || isInitialLoading}
-                allCollections={allCollections}
                 isInitialLoad={isInitialLoading}
+                onDeleteNodeModules={handleDeleteNodeModules}
               />
             </div></div>
       <div className='col-span-1 w-full border-l h-full flex flex-col'>

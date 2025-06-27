@@ -136,6 +136,7 @@ impl DataStore {
                 is_valid: old_repo.is_valid,
                 is_pinned: false, // Default to unpinned
                 pinned_at: None,
+                node_modules_info: None, // Default to no node_modules info for migrated repos
             };
             new_repositories.insert(path, new_repo);
         }
