@@ -15,10 +15,10 @@ https://github.com/user-attachments/assets/98e7dcab-b82b-4838-b449-3d9ad6a4ed55
 
 ## Features
 
-### Auto-discovers all Git repositories on your system
-### Pin frequently used repositories for quick access
-### Group related projects into custom collections
-### Delete unused node_modules from non-active projects to free up disk space
+- ### Auto-discovers all Git repositories on your system
+- ### Pin frequently used repositories for quick access
+- ### Group related projects into custom collections
+- ### Delete unused node_modules from non-active projects to free up disk space
 
 ## Setup & Installation
 
@@ -29,7 +29,7 @@ Before you can develop or build this application, you need to install the follow
 #### System Dependencies
 
 **Windows:**
-1. **Microsoft C++ Build Tools**
+1. **Microsoft C++ Build Tools** ( please refer to https://v2.tauri.app/start/prerequisites/ for more details)
    - Download the [Microsoft C++ Build Tools](https://visualstudio.microsoft.com/visual-cpp-build-tools/) installer
    - During installation, check the "Desktop development with C++" option
    
@@ -38,9 +38,9 @@ Before you can develop or build this application, you need to install the follow
    - Install the "Evergreen Bootstrapper"
 
 **macOS:**
-- **Xcode** (full version, not just Command Line Tools)
-  - Install from [Mac App Store](https://apps.apple.com/gb/app/xcode/id497799835?mt=12) or [Apple Developer website](https://developer.apple.com/xcode/resources/)
-  - Launch Xcode after installation to complete setup
+- **Xcode** Command Line Tools
+    - ```xcode-select --install```
+  
 
 **Linux (Debian/Ubuntu):**
 ```bash
