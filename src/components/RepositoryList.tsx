@@ -6,7 +6,7 @@ import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { CollectionAssignmentDialog } from './CollectionAssignmentDialog';
 import { CollectionBadges } from './CollectionBadges';
-import { GitBranch, Folder, FolderOpen, Pin, Tags, RefreshCw, Trash2 } from "lucide-react";
+import { GitBranch, Folder, FolderOpen, Pin, Tags, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { HardDrive } from 'lucide-react';
 import { GitCommitVertical } from 'lucide-react';

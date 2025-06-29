@@ -1,7 +1,7 @@
 # gitmap - Local Git Repository Manager
+A smart tool to discover, organize, and clean your local Git projects.
 
-Never lose track of your Git repositories again. gitmap scans your entire disk, finds all your Git repositories, and gives you instant access to open them in VS Code or your file manager. No more hunting through folders.
-
+No more manually digging through folders or trying to remember where you cloned that one project last month. GitMap helps you stay organized and keeps your workspace clean by also letting you delete unused node_modules with a single click.
 
 
 <!-- https://github.com/user-attachments/assets/32746ca4-4295-482f-9bf6-875130fe4a64 -->
@@ -15,42 +15,80 @@ https://github.com/user-attachments/assets/98e7dcab-b82b-4838-b449-3d9ad6a4ed55
 
 ## Features
 
-### 🔍 Full Disk Discovery
-Automatically discovers all Git repositories in the selected directory (added maximum search depth of 8 for safety).
-Ignores typicals build/dependancy folders like .next, node_modules, dist etc for efficiency 
-
-### 🚀 One-Click Access
-Open repositories directly in:
-- **VS Code** - Jump straight into your code editor
-- **File Manager** - Browse files in your system's default file explorer
-- **Repository Detail** - View comprehensive repository information
-
-### 💾 Smart Caching
-Scan results are cached locally in JSON format. No need to rescan every time you open the app. lightning-fast startup after initial scan.
-
-### 📈 Rich Metadata
-See comprehensive repository information at a glance:
-- Current branch name
-- Total commit count
-- Repository size (MB/GB)
-- Last commit date
-- File type distribution
-- Repository validity status
-
-### 🌐 Cross-Platform
-Works seamlessly on macOS, Windows, and Linux.
-
-### ⚡ Instant Search & Filter
-Find any repository instantly with powerful search functionality. Filter by repository name with real-time results as you type.
-
-
+### Auto-discovers all Git repositories on your system
+### Pin frequently used repositories for quick access
+### Group related projects into custom collections
+### Delete unused node_modules from non-active projects to free up disk space
 
 ## Setup & Installation
 
 ### Prerequisites
-- **Node.js** (v16 or higher)
-- **Rust** (latest stable version)
-- **pnpm or npm**
+
+Before you can develop or build this application, you need to install the following system dependencies based on your operating system:
+
+#### System Dependencies
+
+**Windows:**
+1. **Microsoft C++ Build Tools**
+   - Download the [Microsoft C++ Build Tools](https://visualstudio.microsoft.com/visual-cpp-build-tools/) installer
+   - During installation, check the "Desktop development with C++" option
+   
+2. **WebView2** (Windows 10 version 1803+ already has this installed)
+   - If needed, download from [WebView2 Runtime download section](https://developer.microsoft.com/en-us/microsoft-edge/webview2/#download-section)
+   - Install the "Evergreen Bootstrapper"
+
+**macOS:**
+- **Xcode** (full version, not just Command Line Tools)
+  - Install from [Mac App Store](https://apps.apple.com/gb/app/xcode/id497799835?mt=12) or [Apple Developer website](https://developer.apple.com/xcode/resources/)
+  - Launch Xcode after installation to complete setup
+
+**Linux (Debian/Ubuntu):**
+```bash
+sudo apt update
+sudo apt install libwebkit2gtk-4.1-dev \
+  build-essential \
+  curl \
+  wget \
+  file \
+  libxdo-dev \
+  libssl-dev \
+  libayatana-appindicator3-dev \
+  librsvg2-dev
+```
+
+**Linux (Arch):**
+```bash
+sudo pacman -S webkit2gtk-4.1 base-devel curl wget file xdotool openssl \
+  libayatana-appindicator librsvg
+```
+
+**Linux (Fedora):**
+```bash
+sudo dnf install webkit2gtk4.1-devel openssl-devel curl wget file \
+  libxdo-devel \
+  @development-tools
+```
+
+#### Rust Installation
+
+**Windows:**
+1. Download and run [rustup-init.exe](https://forge.rust-lang.org/infra/channel-layout.html#rustup)
+2. Follow the installation prompts
+3. Restart your terminal/command prompt
+
+**macOS & Linux:**
+```bash
+curl --proto '=https' --tlsv1.2 https://sh.rustup.rs -sSf | sh
+```
+Restart your terminal after installation.
+
+#### Node.js (Optional - only if using JavaScript frontend)
+- Download and install the LTS version from [Node.js website](https://nodejs.org/)
+- Verify installation:
+```bash
+node -v  # Should show v20.x.x or higher
+npm -v   # Should show version number
+```
 
 ### Development Setup
 
@@ -89,7 +127,7 @@ npm run tauri dev
 
 ### Building for Production
 
-#### All Platforms
+#### Build for Current Platform
 ```bash
 # Build for your current platform
 pnpm tauri build
@@ -98,9 +136,11 @@ pnpm tauri build
 npm run tauri build
 ```
 
-#### Platform-Specific Builds
+#### Cross-Platform Builds
 
-**macOS:**
+**Note:** Cross-compilation is complex and generally requires the target platform for optimal results.
+
+**macOS (Universal Binary):**
 ```bash
 # Requires macOS system
 pnpm tauri build --target universal-apple-darwin
@@ -108,7 +148,7 @@ pnpm tauri build --target universal-apple-darwin
 
 **Windows:**
 ```bash
-# Requires Windows system or cross-compilation setup
+# Requires Windows system
 pnpm tauri build --target x86_64-pc-windows-msvc
 ```
 
@@ -117,12 +157,6 @@ pnpm tauri build --target x86_64-pc-windows-msvc
 # Requires Linux system
 pnpm tauri build --target x86_64-unknown-linux-gnu
 ```
-
-### Cross-Platform Build Requirements
-
-- **macOS**: Xcode Command Line Tools
-- **Windows**: Microsoft C++ Build Tools or Visual Studio
-- **Linux**: Standard build tools (gcc, pkg-config, etc.)
 
 ## Project Structure
 
