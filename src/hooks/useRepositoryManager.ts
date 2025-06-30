@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import { GitRepository, ScanProgress, CacheInfo, ScanPath } from '../types/repository';
+import { useOptimizedSearch } from './useOptimizedSearch';
 
 export const useRepositoryManager = () => {
   const [repositories, setRepositories] = useState<GitRepository[]>([]);
@@ -10,12 +11,17 @@ export const useRepositoryManager = () => {
   const [error, setError] = useState<string | null>(null);
   const [cacheInfo, setCacheInfo] = useState<CacheInfo | null>(null);
 
+  // Use optimized search capabilities
+  const optimizedSearch = useOptimizedSearch();
+
   // Load cached repositories on component mount
   useEffect(() => {
     loadCachedRepositories();
     loadCacheInfo();
+    optimizedSearch.loadOptimizationStats();
   }, []);
 
+  // Enhanced loadCachedRepositories with caching
   const loadCachedRepositories = useCallback(async () => {
     try {
       console.log('Loading cached repositories...'); // Debug log
@@ -283,5 +289,10 @@ export const useRepositoryManager = () => {
     getPinnedRepositories,
     getCacheFilePath,
     openCacheInFileManager,
+    // Optimized search capabilities
+    optimizedSearch,
+    searchByPath: optimizedSearch.searchByPath,
+    getRepositoryFast: optimizedSearch.getRepository,
+    smartFilter: optimizedSearch.filterAndSortRepositories,
   };
 };

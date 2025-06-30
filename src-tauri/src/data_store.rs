@@ -1,4 +1,5 @@
 use crate::repo_types::{GitRepository, ScanPath, Collection};
+use crate::optimizations::{PathTrie, RepositoryIndex, RepositoryCache as LruRepositoryCache, create_repository_cache};
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use std::fs;
@@ -37,6 +38,10 @@ pub struct CacheInfo {
 
 pub struct DataStore {
     cache_file_path: PathBuf,
+    // Optimizations
+    path_trie: PathTrie,
+    lru_cache: LruRepositoryCache,
+    repo_index: RepositoryIndex,
 }
 
 impl DataStore {
@@ -53,7 +58,17 @@ impl DataStore {
         
         let cache_file_path = app_data_dir.join("repositories_cache.json");
         
-        Ok(Self { cache_file_path })
+        let mut store = Self { 
+            cache_file_path,
+            path_trie: PathTrie::new(),
+            lru_cache: create_repository_cache(1000), // Cache last 1000 accessed repos
+            repo_index: RepositoryIndex::new(),
+        };
+        
+        // Initialize optimizations with existing data
+        store.rebuild_optimizations()?;
+        
+        Ok(store)
     }
     
     pub fn load_cache(&self) -> Result<RepositoryCache, String> {
@@ -422,5 +437,185 @@ impl DataStore {
     
     pub fn get_cache_file_path_string(&self) -> String {
         self.cache_file_path.to_string_lossy().to_string()
+    }
+    
+    // === OPTIMIZATION METHODS ===
+    
+    /// Rebuild all optimization data structures from current cache
+    pub fn rebuild_optimizations(&mut self) -> Result<(), String> {
+        let cache = self.load_cache()?;
+        
+        // Clear existing optimizations
+        self.path_trie.clear();
+        self.repo_index.clear();
+        
+        // Rebuild from cache
+        for (path, repo) in &cache.repositories {
+            self.path_trie.insert_repository(path);
+            self.repo_index.insert_repository(repo);
+            
+            // Also populate LRU cache with frequently accessed repos
+            if repo.is_pinned {
+                if let Ok(mut lru) = self.lru_cache.lock() {
+                    lru.put(path.clone(), repo.clone());
+                }
+            }
+        }
+        
+        Ok(())
+    }
+    
+    /// Fast repository access with LRU caching - O(1) average case
+    pub fn get_repository_fast(&self, repo_path: &str) -> Result<Option<GitRepository>, String> {
+        // Try LRU cache first
+        if let Ok(mut lru) = self.lru_cache.lock() {
+            if let Some(repo) = lru.get(repo_path) {
+                return Ok(Some(repo.clone()));
+            }
+        }
+        
+        // Fall back to disk cache
+        let cache = self.load_cache()?;
+        if let Some(repo) = cache.repositories.get(repo_path) {
+            // Update LRU cache
+            if let Ok(mut lru) = self.lru_cache.lock() {
+                lru.put(repo_path.to_string(), repo.clone());
+            }
+            Ok(Some(repo.clone()))
+        } else {
+            Ok(None)
+        }
+    }
+    
+    /// Fast path-based repository search - O(m) where m is path depth
+    pub fn find_repositories_under_path_optimized(&self, path: &str) -> Result<Vec<GitRepository>, String> {
+        let repo_paths = self.path_trie.find_repositories_under_path(path);
+        let cache = self.load_cache()?;
+        
+        Ok(repo_paths.into_iter()
+            .filter_map(|path| cache.repositories.get(&path))
+            .cloned()
+            .collect())
+    }
+    
+    /// Advanced search using multiple indices
+    pub fn advanced_search(&self, 
+        name_prefix: Option<&str>,
+        min_size_mb: Option<f64>,
+        max_size_mb: Option<f64>,
+        file_type: Option<&str>
+    ) -> Result<Vec<GitRepository>, String> {
+        let cache = self.load_cache()?;
+        let mut candidate_paths = std::collections::HashSet::new();
+        let mut is_first_filter = true;
+        
+        // Use indices for efficient filtering
+        if let Some(prefix) = name_prefix {
+            let paths = self.repo_index.find_repositories_by_name_prefix(prefix);
+            if is_first_filter {
+                candidate_paths.extend(paths);
+                is_first_filter = false;
+            } else {
+                candidate_paths.retain(|path| paths.contains(path));
+            }
+        }
+        
+        if let (Some(min), Some(max)) = (min_size_mb, max_size_mb) {
+            let paths = self.repo_index.find_repositories_by_size_range(min, max);
+            if is_first_filter {
+                candidate_paths.extend(paths);
+                is_first_filter = false;
+            } else {
+                candidate_paths.retain(|path| paths.contains(path));
+            }
+        }
+        
+        if let Some(file_ext) = file_type {
+            let paths = self.repo_index.find_repositories_by_file_type(file_ext);
+            if is_first_filter {
+                candidate_paths.extend(paths);
+                is_first_filter = false;
+            } else {
+                candidate_paths.retain(|path| paths.contains(path));
+            }
+        }
+        
+        // If no filters applied, return all repositories
+        if is_first_filter {
+            candidate_paths.extend(cache.repositories.keys().cloned());
+        }
+        
+        // Convert paths to repositories
+        let results: Vec<GitRepository> = candidate_paths.into_iter()
+            .filter_map(|path| cache.repositories.get(&path))
+            .cloned()
+            .collect();
+            
+        Ok(results)
+    }
+    
+    /// Override add_repository to update optimizations
+    pub fn add_repository_optimized(&mut self, repo: GitRepository) -> Result<(), String> {
+        // Update disk cache
+        let mut cache = self.load_cache()?;
+        cache.repositories.insert(repo.path.clone(), repo.clone());
+        cache.last_updated = Utc::now();
+        self.save_cache(&cache)?;
+        
+        // Update optimizations
+        self.path_trie.insert_repository(&repo.path);
+        self.repo_index.insert_repository(&repo);
+        
+        // Update LRU cache
+        if let Ok(mut lru) = self.lru_cache.lock() {
+            lru.put(repo.path.clone(), repo);
+        }
+        
+        Ok(())
+    }
+    
+    /// Override remove repository to update optimizations
+    pub fn remove_repository_optimized(&mut self, repo_path: &str) -> Result<(), String> {
+        // Get repository before removing for optimization cleanup
+        let cache = self.load_cache()?;
+        let repo = cache.repositories.get(repo_path).cloned();
+        
+        // Update disk cache
+        let mut cache = cache;
+        cache.repositories.remove(repo_path);
+        cache.last_updated = Utc::now();
+        self.save_cache(&cache)?;
+        
+        // Update optimizations
+        self.path_trie.remove_repository(repo_path);
+        if let Some(repo) = repo {
+            self.repo_index.remove_repository(&repo);
+        }
+        
+        // Update LRU cache
+        if let Ok(mut lru) = self.lru_cache.lock() {
+            lru.pop(repo_path);
+        }
+        
+        Ok(())
+    }
+    
+    /// Get cache statistics including optimization info
+    pub fn get_optimization_stats(&self) -> Result<serde_json::Value, String> {
+        let cache = self.load_cache()?;
+        let lru_size = if let Ok(lru) = self.lru_cache.lock() {
+            lru.len()
+        } else {
+            0
+        };
+        
+        Ok(serde_json::json!({
+            "total_repositories": cache.repositories.len(),
+            "lru_cache_size": lru_size,
+            "lru_cache_capacity": 1000,
+            "index_name_entries": self.repo_index.by_name.len(),
+            "index_size_ranges": self.repo_index.by_size_range.len(),
+            "index_file_types": self.repo_index.by_file_type.len()
+        }))
     }
 }

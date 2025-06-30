@@ -1,6 +1,7 @@
 mod repo_types;
 mod git_scanner;
 mod data_store;
+mod optimizations;
 
 use repo_types::{GitRepository, FileEntry, DirectoryListing};
 use git_scanner::GitScanner;
@@ -493,6 +494,42 @@ async fn delete_node_modules(repo_path: String, _state: State<'_, AppState>) -> 
     Ok(())
 }
 
+// === OPTIMIZED SEARCH COMMANDS ===
+
+#[command]
+async fn find_repositories_under_path(path: String) -> Result<Vec<GitRepository>, String> {
+    let data_store = data_store::DataStore::new()?;
+    data_store.find_repositories_under_path_optimized(&path)
+}
+
+#[command]
+async fn advanced_repository_search(
+    name_prefix: Option<String>,
+    min_size_mb: Option<f64>,
+    max_size_mb: Option<f64>,
+    file_type: Option<String>
+) -> Result<Vec<GitRepository>, String> {
+    let data_store = data_store::DataStore::new()?;
+    data_store.advanced_search(
+        name_prefix.as_deref(),
+        min_size_mb,
+        max_size_mb,
+        file_type.as_deref()
+    )
+}
+
+#[command]
+async fn get_repository_fast(repo_path: String) -> Result<Option<GitRepository>, String> {
+    let data_store = data_store::DataStore::new()?;
+    data_store.get_repository_fast(&repo_path)
+}
+
+#[command]
+async fn get_optimization_stats() -> Result<serde_json::Value, String> {
+    let data_store = data_store::DataStore::new()?;
+    data_store.get_optimization_stats()
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     match GitScanner::new() {
@@ -533,7 +570,15 @@ pub fn run() {
                     get_repositories_in_collection,
                     get_cache_file_path,
                     open_cache_in_file_manager,
-                    delete_node_modules
+                    delete_node_modules,
+                    find_repositories_under_path,
+                    advanced_repository_search,
+                    get_repository_fast,
+                    get_optimization_stats,
+                    find_repositories_under_path,
+                    advanced_repository_search,
+                    get_repository_fast,
+                    get_optimization_stats
                 ])
                 .run(tauri::generate_context!())
                 .expect("error while running tauri application");

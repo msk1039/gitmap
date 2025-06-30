@@ -65,6 +65,23 @@ export interface Collection {
   created_at: string;
 }
 
+export interface SearchFilters {
+  namePrefix?: string;
+  minSizeMb?: number;
+  maxSizeMb?: number;
+  fileType?: string;
+  pathFilter?: string;
+}
+
+export interface OptimizationStats {
+  total_repositories: number;
+  lru_cache_size: number;
+  lru_cache_capacity: number;
+  index_name_entries: number;
+  index_size_ranges: number;
+  index_file_types: number;
+}
+
 export interface AppState {
   repositories: GitRepository[];
   selectedRepo: GitRepository | null;

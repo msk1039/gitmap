@@ -38,6 +38,8 @@ export const HomePage: React.FC = () => {
     togglePin,
     loadCachedRepositories,
     refreshRepository,
+    smartFilter,
+    optimizedSearch,
   } = useRepositoryManager();
 
   const handleDeleteNodeModules = async (repoPath: string) => {
@@ -76,51 +78,17 @@ export const HomePage: React.FC = () => {
       collectionFiltered = repositories.filter(repo => collectionPaths.has(repo.path));
     }
     
-    // Then filter by search query
-    const filtered = searchQuery.trim() 
-      ? collectionFiltered.filter(repo => 
-          repo.name.toLowerCase().includes(searchQuery.toLowerCase())
-        )
-      : collectionFiltered;
+    // Use optimized filtering and sorting
+    const result = smartFilter(collectionFiltered, searchQuery, sortBy);
     
-    console.log('After filtering:', filtered.length, 'repositories'); // Debug log
-    
-    // Separate pinned and unpinned repositories
-    const pinnedRepos = filtered.filter(repo => repo.is_pinned);
-    const unpinnedRepos = filtered.filter(repo => !repo.is_pinned);
-    
-    console.log('Pinned repos:', pinnedRepos.length, 'Unpinned repos:', unpinnedRepos.length); // Debug log
-    
-    // Apply sorting to both pinned and unpinned repositories
-    const sortFunction = (a: GitRepository, b: GitRepository) => {
-      switch (sortBy) {
-        case 'name':
-          return a.name.localeCompare(b.name);
-        case 'lastUpdated':
-          const dateA = a.last_commit_date ? new Date(a.last_commit_date).getTime() : 0;
-          const dateB = b.last_commit_date ? new Date(b.last_commit_date).getTime() : 0;
-          return dateB - dateA; // Most recent first
-        case 'size':
-          return b.size_mb - a.size_mb; // Largest first
-        default:
-          return 0;
-      }
-    };
-    
-    // Sort both pinned and unpinned repositories
-    const sortedPinnedRepos = [...pinnedRepos].sort(sortFunction);
-    const sortedUnpinnedRepos = [...unpinnedRepos].sort(sortFunction);
-    
-    // Combine sorted pinned repos first, then sorted unpinned repos
-    const result = [...sortedPinnedRepos, ...sortedUnpinnedRepos];
-    console.log('Final sorted result:', result.length, 'repositories'); // Debug log
+    console.log('After optimized filtering:', result.length, 'repositories'); // Debug log
     console.log('Final pinned repos in result:', result.filter(r => r.is_pinned).map(r => r.name)); // Debug log
     
     const endTime = performance.now();
-    console.log(`🔄 Filtering and sorting took: ${(endTime - startTime).toFixed(2)}ms`);
+    console.log(`🔄 Optimized filtering and sorting took: ${(endTime - startTime).toFixed(2)}ms`);
     
     return result;
-  }, [repositories, sortBy, searchQuery, selectedCollection, collectionRepositories]);
+  }, [repositories, sortBy, searchQuery, selectedCollection, collectionRepositories, smartFilter]);
 
   const handleCollectionChange = async (collectionId: string) => {
     console.log(`🕐 Starting collection change to: ${collectionId}`);
