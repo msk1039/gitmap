@@ -156,14 +156,14 @@ export const HomePage: React.FC = () => {
 
       <div className="flex min-h-[calc(100vh-3rem)] w-full items-stretch">
         {/* Collections Sidebar */}
-        <aside className="md:w-32 w-4 border-r"></aside>
+        <aside className="hidden md:block md:w-16 lg:w-32 w-4 border-r"></aside>
         
         <main className="h-full grow flex flex-col">
-          <div className="grid grid-cols-5 gap-4 w-full">
+          <div className="grid grid-cols-1 md:grid-cols-4 lg:grid-cols-5 gap-4 w-full">
 
-            <div className='col-span-1 w-full h-screen border-r flex flex-col items-center sticky top-0 bg-background pt-16'>
+            <div className='col-span-1 w-full md:h-screen border-r flex flex-col items-center md:sticky top-0 bg-background pt-16'>
               {/* collections list sidebar */}
-              <div className='flex flex-col items-center justify-center mt-40 border-t border-b p-4 w-full bg-[#f7faf6] inset-shadow-sm inset-shadow-lime-600/50'>
+              <div className='flex flex-col items-center justify-center mt-4 md:mt-40 border-t border-b p-4 w-full bg-[#f7faf6] inset-shadow-sm inset-shadow-lime-600/50'>
                 <div className='flex flex-col items-center justify-center px-4 mb-2'>
 
               <h2 className='text-lg font-semibold'>Collections</h2>
@@ -183,7 +183,7 @@ export const HomePage: React.FC = () => {
               </div>
             </div>
             {/* Title and Controls Section */}
-            <div className='col-span-3 w-full flex flex-col'>
+            <div className='col-span-1 md:col-span-3 w-full flex flex-col'>
             <div className="flex flex-col gap-4 sticky top-6 bg-background z-2">
               <div className="pt-12">
                 <div className='my-5'>
@@ -320,13 +320,13 @@ export const HomePage: React.FC = () => {
                 onDeleteNodeModules={handleDeleteNodeModules}
               />
             </div></div>
-      <div className='col-span-1 w-full border-l h-full flex flex-col'>
+      <div className='col-span-1 hidden lg:block w-full border-l h-full flex flex-col'>
 
             </div>
           </div>
         </main>
         
-        <aside className="md:w-32 w-4 border-l"></aside>
+        <aside className="hidden md:block md:w-16 lg:w-32 w-4 border-l"></aside>
       </div>
 
       {/* Scan Directory Manager Dialog */}
