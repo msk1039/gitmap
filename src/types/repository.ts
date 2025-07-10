@@ -1,3 +1,15 @@
+export interface AnalysisProgress {
+  total: number;
+  current: number;
+  current_path: string;
+}
+
+export interface RepositoriesDiscovered {
+  count: number;
+  time_taken_ms: number;
+  repo_paths: string[];
+}
+
 export interface NodeModulesInfo {
   total_size_mb: number;
   count: number;

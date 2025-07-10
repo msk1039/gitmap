@@ -89,12 +89,12 @@ export const SettingsPage: React.FC = () => {
               </p>
             </div>
 
-            <div className='h-30 w-full mb-4 bg-yellow-50 flex items-center justify-center border-2 border-yellow-400 rounded-md'>
+            {/* <div className='h-30 w-full mb-4 bg-yellow-50 flex items-center justify-center border-2 border-yellow-400 rounded-md'>
             <h2 className="text-2xl font-medium text-muted-foreground gap-2 flex items-center justify-center ">
-                   {/* <Trash2 className="h-5 w-5" /> */}
+
                  Settings and analytics coming soon
                 </h2>
-            </div>
+            </div> */}
 
             {/* Cache Information Card */}
             <div className='border bg-[#f8f8f7] pb-2'>

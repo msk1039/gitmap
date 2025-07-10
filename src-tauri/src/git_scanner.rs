@@ -1,4 +1,6 @@
-use crate::repo_types::{GitRepository, ScanProgress, NodeModulesInfo};
+use crate::repo_types::{
+    GitRepository, ScanProgress, NodeModulesInfo, RepositoriesDiscovered, AnalysisProgress
+};
 use crate::data_store::DataStore;
 use std::path::{Path, PathBuf};
 use walkdir::WalkDir;
@@ -7,6 +9,7 @@ use std::collections::HashMap;
 use tauri::{Window, Emitter};
 use chrono::{DateTime, Utc};
 use std::fs;
+use std::time::Instant;
 
 pub struct GitScanner {
     pub repos: Vec<GitRepository>,
@@ -20,6 +23,84 @@ impl GitScanner {
             repos: Vec::new(),
             data_store,
         })
+    }
+
+    pub async fn discover_repositories(&self, window: &Window, paths: Vec<String>) -> Result<Vec<String>, String> {
+        let start_time = Instant::now();
+        let mut discovered_paths = Vec::new();
+        let mut repos_found = 0;
+
+        for path_str in paths {
+            let root_path = Path::new(&path_str);
+            if !root_path.exists() || !root_path.is_dir() {
+                continue;
+            }
+
+            let walker = WalkDir::new(root_path).into_iter();
+            for entry in walker.filter_entry(|e| !is_hidden(e) && !is_large_dir(e)) {
+                if let Ok(entry) = entry {
+                    if entry.file_type().is_dir() && entry.path().join(".git").exists() {
+                        if let Some(path_str) = entry.path().to_str() {
+                            discovered_paths.push(path_str.to_string());
+                            repos_found += 1;
+
+                            let _ = window.emit("scan-progress", ScanProgress {
+                                current_path: path_str.to_string(),
+                                repos_found,
+                                completed: false,
+                            });
+                        }
+                    }
+                }
+            }
+        }
+
+        let elapsed = start_time.elapsed().as_millis();
+        let _ = window.emit("repositories-discovered", RepositoriesDiscovered {
+            count: discovered_paths.len(),
+            time_taken_ms: elapsed,
+            repo_paths: discovered_paths.clone(),
+        });
+
+        Ok(discovered_paths)
+    }
+
+    pub async fn analyze_discovered_repositories(
+        &mut self,
+        window: &Window,
+        repo_paths: Vec<String>,
+    ) -> Result<Vec<GitRepository>, String> {
+        let total = repo_paths.len();
+        let mut analyzed_repos = Vec::new();
+        let existing_cache = self.data_store.load_cache().unwrap_or_default();
+
+        for (i, path_str) in repo_paths.iter().enumerate() {
+            let _ = window.emit("analysis-progress", AnalysisProgress {
+                total,
+                current: i + 1,
+                current_path: path_str.clone(),
+            });
+
+            let repo_path = Path::new(path_str);
+            match self.analyze_repository(repo_path) {
+                Ok(mut repo) => {
+                    if let Some(existing_repo) = existing_cache.repositories.get(&repo.path) {
+                        repo.is_pinned = existing_repo.is_pinned;
+                        repo.pinned_at = existing_repo.pinned_at;
+                    }
+                    if let Err(e) = self.data_store.add_repository(repo.clone()) {
+                        eprintln!("Failed to save repository {}: {}", repo.name, e);
+                    }
+                    analyzed_repos.push(repo);
+                }
+                Err(e) => {
+                    eprintln!("Failed to analyze repository at {}: {}", path_str, e);
+                }
+            }
+        }
+
+        self.repos = analyzed_repos.clone();
+        Ok(analyzed_repos)
     }
 
     pub async fn load_cached_repositories(&mut self) -> Result<Vec<GitRepository>, String> {
@@ -37,7 +118,7 @@ impl GitScanner {
                     // For now, let's assume if cache is loaded, we can return it.
                     // This part of the logic might need further refinement based on exact requirements
                     // (e.g., validating if paths still exist).
-                    // self.repos = cached_repos.clone(); // self.load_cached_repositories already updates self.repos
+                    // self.repos = cached_repositories.clone(); // self.load_cached_repositories already updates self.repos
                     return Ok(self.repos.clone());
                 }
                 Ok(_) => { /* Cache was empty or load_cached_repositories returned empty */ }
@@ -168,72 +249,34 @@ impl GitScanner {
     }
     
     pub fn get_scan_paths(&self) -> Result<Vec<crate::repo_types::ScanPath>, String> {
-        self.data_store.get_scan_paths()
+        let cache = self.data_store.load_cache()?;
+        Ok(cache.scan_paths.into_values().collect())
     }
 
     async fn scan_directory(&mut self, root_path: &Path, window: &Window, repos_found: &mut u32) -> Result<(), String> {
         let walker = WalkDir::new(root_path)
-            .follow_links(false)
-            .max_depth(8) // Limit depth to avoid infinite recursion
-            .into_iter()
-            .filter_entry(|e| {
-                let path = e.path();
-                // Skip hidden directories except .git, and skip system directories
-                if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
-                    if name.starts_with('.') && name != ".git" {
-                        return false;
-                    }
-                    // Skip common non-repository directories
-                    if matches!(name, "node_modules" | "target" | "build" | "dist" | ".next" | "__pycache__") {
-                        return false;
-                    }
-                }
-                true
-            });
+            .into_iter();
 
-        for entry in walker {
-            match entry {
-                Ok(entry) => {
-                    let path = entry.path();
-                    
-                    // Send progress update every 100 directories
-                    if *repos_found % 100 == 0 {
-                        let _ = window.emit("scan-progress", ScanProgress {
-                            current_path: path.to_string_lossy().to_string(),
-                            repos_found: *repos_found,
-                            completed: false,
-                        });
-                    }
-
-                    // Check if this is a .git directory
-                    if path.file_name() == Some(std::ffi::OsStr::new(".git")) && path.is_dir() {
-                        if let Some(repo_path) = path.parent() {
-                            match self.analyze_repository(repo_path) {
-                                Ok(repo) => {
-                                    self.repos.push(repo);
-                                    *repos_found += 1;
-                                    
-                                    // Send update for found repository
-                                    let _ = window.emit("scan-progress", ScanProgress {
-                                        current_path: repo_path.to_string_lossy().to_string(),
-                                        repos_found: *repos_found,
-                                        completed: false,
-                                    });
-                                }
-                                Err(e) => {
-                                    eprintln!("Failed to analyze repository at {:?}: {}", repo_path, e);
-                                }
-                            }
+        for entry in walker.filter_entry(|e| !is_hidden(e) && !is_large_dir(e)) {
+            if let Ok(entry) = entry {
+                if entry.file_type().is_dir() && entry.path().join(".git").exists() {
+                    match self.analyze_repository(entry.path()) {
+                        Ok(repo) => {
+                            *repos_found += 1;
+                            let _ = window.emit("scan-progress", ScanProgress {
+                                current_path: repo.path.clone(),
+                                repos_found: *repos_found,
+                                completed: false,
+                            });
+                            self.repos.push(repo);
+                        }
+                        Err(e) => {
+                            eprintln!("Failed to analyze repository at {:?}: {}", entry.path(), e);
                         }
                     }
                 }
-                Err(e) => {
-                    eprintln!("Error walking directory: {}", e);
-                    continue;
-                }
             }
         }
-
         Ok(())
     }
 
@@ -242,8 +285,10 @@ impl GitScanner {
     }
 
     pub fn analyze_repository_with_cache(&self, repo_path: &Path, existing_repo: Option<&GitRepository>) -> Result<GitRepository, String> {
-        let repo = Repository::open(repo_path)
-            .map_err(|e| format!("Failed to open git repository: {}", e))?;
+        let repo = match Repository::open(repo_path) {
+            Ok(repo) => repo,
+            Err(e) => return Err(format!("Failed to open repository at {:?}: {}", repo_path, e)),
+        };
 
         // Get repository name from the directory name
         let name = repo_path
@@ -613,4 +658,18 @@ impl GitScanner {
             node_modules_info,
         })
     }
+}
+
+fn is_hidden(entry: &walkdir::DirEntry) -> bool {
+    entry.file_name()
+         .to_str()
+         .map(|s| s.starts_with('.') || s == "node_modules" || s == "vendor" || s == "target")
+         .unwrap_or(false)
+}
+
+fn is_large_dir(entry: &walkdir::DirEntry) -> bool {
+    if let Some(file_name) = entry.file_name().to_str() {
+        return matches!(file_name, "node_modules" | "target" | "vendor" | ".git" | ".svn" | "dist" | "build");
+    }
+    false
 }

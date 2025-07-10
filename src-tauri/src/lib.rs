@@ -3,11 +3,11 @@ mod git_scanner;
 mod data_store;
 mod optimizations;
 
-use repo_types::{GitRepository, FileEntry, DirectoryListing};
+use repo_types::{GitRepository, FileEntry, DirectoryListing, Collection};
 use git_scanner::GitScanner;
 use data_store::CacheInfo;
 use tauri::{command, Window, State};
-use std::sync::Mutex;
+use tauri::async_runtime::Mutex;
 use std::path::Path;
 use std::fs;
 
@@ -16,76 +16,62 @@ struct AppState {
 }
 
 #[command]
+async fn discover_repositories(
+    window: Window,
+    state: State<'_, AppState>,
+    paths: Vec<String>,
+) -> Result<Vec<String>, String> {
+    let scanner = state.scanner.lock().await;
+    scanner.discover_repositories(&window, paths).await
+}
+
+#[command]
+async fn analyze_discovered_repositories(
+    window: Window,
+    state: State<'_, AppState>,
+    repo_paths: Vec<String>,
+) -> Result<Vec<GitRepository>, String> {
+    let mut scanner = state.scanner.lock().await;
+    scanner.analyze_discovered_repositories(&window, repo_paths).await
+}
+
+#[command]
 async fn scan_repositories(window: Window, state: State<'_, AppState>) -> Result<Vec<GitRepository>, String> {
-    // Create a new scanner for this operation
-    let mut temp_scanner = GitScanner::new()?;
-    let repos = temp_scanner.scan_disk(&window).await?;
-    
-    // Update the state with the results
-    {
-        let mut scanner_guard = state.scanner.lock().map_err(|e| format!("Failed to lock scanner state: {}", e))?;
-        scanner_guard.repos = repos.clone();
-    }
-    
-    Ok(repos)
+    let mut scanner = state.scanner.lock().await;
+    scanner.scan_disk(&window).await
 }
 
 #[command]
 async fn scan_repositories_with_cache(
-    window: Window, 
+    window: Window,
     state: State<'_, AppState>,
-    force_rescan: bool
+    force_rescan: bool,
 ) -> Result<Vec<GitRepository>, String> {
-    // Create a new scanner for this operation
-    let mut temp_scanner = GitScanner::new()?;
-    let repos = temp_scanner.scan_disk_with_cache(&window, force_rescan).await?;
-    
-    // Update the state with the results
-    {
-        let mut scanner_guard = state.scanner.lock().map_err(|e| format!("Failed to lock scanner state: {}", e))?;
-        scanner_guard.repos = repos.clone();
-    }
-    
-    Ok(repos)
+    let mut scanner = state.scanner.lock().await;
+    scanner.scan_disk_with_cache(&window, force_rescan).await
 }
 
 #[command]
 async fn load_cached_repositories(state: State<'_, AppState>) -> Result<Vec<GitRepository>, String> {
-    let mut temp_scanner = GitScanner::new()?;
-    let repos = temp_scanner.load_cached_repositories().await?;
-    
-    // Update the state with the results
-    {
-        let mut scanner_guard = state.scanner.lock().map_err(|e| format!("Failed to lock scanner state: {}", e))?;
-        scanner_guard.repos = repos.clone();
-    }
-    
-    Ok(repos)
+    let mut scanner = state.scanner.lock().await;
+    scanner.load_cached_repositories().await
 }
 
 #[command]
-async fn get_cache_info(_state: State<'_, AppState>) -> Result<CacheInfo, String> {
-    let scanner = GitScanner::new()?;
+async fn get_cache_info(state: State<'_, AppState>) -> Result<CacheInfo, String> {
+    let scanner = state.scanner.lock().await;
     scanner.get_cache_info()
 }
 
 #[command]
 async fn clear_cache(state: State<'_, AppState>) -> Result<(), String> {
-    let scanner = GitScanner::new()?;
-    scanner.clear_cache()?;
-    
-    // Clear the state as well
-    {
-        let mut scanner_guard = state.scanner.lock().map_err(|e| format!("Failed to lock scanner state: {}", e))?;
-        scanner_guard.repos.clear();
-    }
-    
-    Ok(())
+    let scanner = state.scanner.lock().await;
+    scanner.clear_cache()
 }
 
 #[command]
-async fn cleanup_invalid_repositories(_state: State<'_, AppState>) -> Result<usize, String> {
-    let scanner = GitScanner::new()?;
+async fn cleanup_invalid_repositories(state: State<'_, AppState>) -> Result<usize, String> {
+    let scanner = state.scanner.lock().await;
     scanner.cleanup_invalid_repositories()
 }
 
@@ -106,18 +92,8 @@ async fn open_in_vscode(repo_path: String) -> Result<(), String> {
 
 #[command]
 async fn refresh_repository(repo_path: String, state: State<'_, AppState>) -> Result<GitRepository, String> {
-    let mut temp_scanner = GitScanner::new()?;
-    let updated_repo = temp_scanner.refresh_repository(&repo_path)?;
-    
-    // Update the repository in the scanner's list
-    {
-        let mut scanner_guard = state.scanner.lock().map_err(|e| format!("Failed to lock scanner state: {}", e))?;
-        if let Some(index) = scanner_guard.repos.iter().position(|r| r.path == repo_path) {
-            scanner_guard.repos[index] = updated_repo.clone();
-        }
-    }
-    
-    Ok(updated_repo)
+    let mut scanner = state.scanner.lock().await;
+    scanner.refresh_repository(&repo_path)
 }
 
 #[command]
@@ -208,21 +184,7 @@ async fn list_directory_contents(repo_path: String) -> Result<DirectoryListing, 
 
 #[command]
 async fn read_file_content(file_path: String) -> Result<String, String> {
-    let path = Path::new(&file_path);
-    
-    if !path.exists() {
-        return Err(format!("File does not exist: {}", file_path));
-    }
-    
-    if !path.is_file() {
-        return Err(format!("Path is not a file: {}", file_path));
-    }
-    
-    // Read the file content
-    match fs::read_to_string(path) {
-        Ok(content) => Ok(content),
-        Err(e) => Err(format!("Failed to read file: {}", e)),
-    }
+    fs::read_to_string(file_path).map_err(|e| e.to_string())
 }
 
 // Keep the existing greet command for compatibility
@@ -275,177 +237,109 @@ async fn open_in_file_manager(repo_path: String) -> Result<(), String> {
 
 #[command]
 async fn scan_custom_paths(
-    window: Window, 
+    window: Window,
     state: State<'_, AppState>,
-    scan_paths: Vec<String>
+    scan_paths: Vec<String>,
 ) -> Result<Vec<GitRepository>, String> {
-    // Create a new scanner for this operation
-    let mut temp_scanner = GitScanner::new()?;
-    let repos = temp_scanner.scan_custom_paths(&window, scan_paths).await?;
-    
-    // Update the state with the results
-    {
-        let mut scanner_guard = state.scanner.lock().map_err(|e| format!("Failed to lock scanner state: {}", e))?;
-        scanner_guard.repos = repos.clone();
-    }
-    
-    Ok(repos)
+    let mut scanner = state.scanner.lock().await;
+    scanner.scan_custom_paths(&window, scan_paths).await
 }
 
 #[command]
 async fn refresh_cache(state: State<'_, AppState>) -> Result<Vec<GitRepository>, String> {
-    let mut temp_scanner = GitScanner::new()?;
-    let refreshed_repos = temp_scanner.refresh_cache()?;
-    
-    // Update the state with the results
-    {
-        let mut scanner_guard = state.scanner.lock().map_err(|e| format!("Failed to lock scanner state: {}", e))?;
-        scanner_guard.repos = refreshed_repos.clone();
-    }
-    
-    Ok(refreshed_repos)
+    let mut scanner = state.scanner.lock().await;
+    scanner.refresh_cache()
 }
 
 #[command]
-async fn add_scan_path(path: String, _state: State<'_, AppState>) -> Result<(), String> {
-    let scanner = GitScanner::new()?;
+async fn add_scan_path(path: String, state: State<'_, AppState>) -> Result<(), String> {
+    let scanner = state.scanner.lock().await;
     scanner.add_scan_path(path)
 }
 
 #[command]
-async fn remove_scan_path(path: String, _state: State<'_, AppState>) -> Result<(), String> {
-    let scanner = GitScanner::new()?;
+async fn remove_scan_path(path: String, state: State<'_, AppState>) -> Result<(), String> {
+    let scanner = state.scanner.lock().await;
     scanner.remove_scan_path(&path)
 }
 
 #[command]
-async fn get_scan_paths(_state: State<'_, AppState>) -> Result<Vec<repo_types::ScanPath>, String> {
-    let scanner = GitScanner::new()?;
+async fn get_scan_paths(state: State<'_, AppState>) -> Result<Vec<repo_types::ScanPath>, String> {
+    let scanner = state.scanner.lock().await;
     scanner.get_scan_paths()
 }
 
 #[command]
-async fn delete_repository(repo_path: String, _state: State<'_, AppState>) -> Result<(), String> {
-    let scanner = GitScanner::new()?;
+async fn delete_repository(repo_path: String, state: State<'_, AppState>) -> Result<(), String> {
+    let scanner = state.scanner.lock().await;
     scanner.remove_repository_from_cache(&repo_path)
 }
 
 // Pin-related commands
 #[command]
-async fn toggle_repository_pin(repo_path: String, _state: State<'_, AppState>) -> Result<GitRepository, String> {
-    let scanner = GitScanner::new()?;
-    let data_store = scanner.data_store;
-    data_store.toggle_repository_pin(&repo_path)
+async fn toggle_repository_pin(repo_path: String, state: State<'_, AppState>) -> Result<GitRepository, String> {
+    let mut scanner = state.scanner.lock().await;
+    scanner.data_store.toggle_repository_pin(&repo_path)
 }
 
 #[command]
-async fn get_pinned_repositories(_state: State<'_, AppState>) -> Result<Vec<GitRepository>, String> {
-    let scanner = GitScanner::new()?;
-    let data_store = scanner.data_store;
-    data_store.get_pinned_repositories()
+async fn get_pinned_repositories(state: State<'_, AppState>) -> Result<Vec<GitRepository>, String> {
+    let scanner = state.scanner.lock().await;
+    scanner.data_store.get_pinned_repositories()
 }
 
 // Collection-related commands
 #[command]
-async fn create_collection(name: String, color: String, _state: State<'_, AppState>) -> Result<repo_types::Collection, String> {
-    let scanner = GitScanner::new()?;
-    let data_store = scanner.data_store;
-    data_store.create_collection(name, color)
+async fn create_collection(name: String, color: String, state: State<'_, AppState>) -> Result<Collection, String> {
+    let scanner = state.scanner.lock().await;
+    scanner.data_store.create_collection(name, color)
 }
 
 #[command]
-async fn get_collections(_state: State<'_, AppState>) -> Result<Vec<repo_types::Collection>, String> {
-    let scanner = GitScanner::new()?;
-    let data_store = scanner.data_store;
-    data_store.get_collections()
+async fn get_collections(state: State<'_, AppState>) -> Result<Vec<Collection>, String> {
+    let scanner = state.scanner.lock().await;
+    scanner.data_store.get_collections()
 }
 
 #[command]
 async fn add_repository_to_collection(
     collection_id: String,
     repo_path: String,
-    _state: State<'_, AppState>
+    state: State<'_, AppState>,
 ) -> Result<(), String> {
-    let scanner = GitScanner::new()?;
-    let data_store = scanner.data_store;
-    data_store.add_repository_to_collection(&collection_id, &repo_path)
-}
-
-#[command]
-async fn remove_repository_from_collection(
-    collection_id: String,
-    repo_path: String,
-    _state: State<'_, AppState>
-) -> Result<(), String> {
-    let scanner = GitScanner::new()?;
-    let data_store = scanner.data_store;
-    data_store.remove_repository_from_collection(&collection_id, &repo_path)
-}
-
-#[command]
-async fn delete_collection(collection_id: String, _state: State<'_, AppState>) -> Result<(), String> {
-    let scanner = GitScanner::new()?;
-    let data_store = scanner.data_store;
-    data_store.delete_collection(&collection_id)
+    let scanner = state.scanner.lock().await;
+    scanner.data_store.add_repository_to_collection(&collection_id, &repo_path)
 }
 
 #[command]
 async fn get_repositories_in_collection(
     collection_id: String,
-    _state: State<'_, AppState>
+    state: State<'_, AppState>,
 ) -> Result<Vec<GitRepository>, String> {
-    let scanner = GitScanner::new()?;
-    let data_store = scanner.data_store;
-    data_store.get_repositories_in_collection(&collection_id)
+    let scanner = state.scanner.lock().await;
+    scanner.data_store.get_repositories_in_collection(&collection_id)
 }
 
 #[command]
-async fn get_cache_file_path(_state: State<'_, AppState>) -> Result<String, String> {
-    let scanner = GitScanner::new()?;
-    let data_store = scanner.data_store;
-    Ok(data_store.get_cache_file_path_string())
+async fn delete_collection(collection_id: String, state: State<'_, AppState>) -> Result<(), String> {
+    let mut scanner = state.scanner.lock().await;
+    scanner.data_store.delete_collection(&collection_id)
 }
 
 #[command]
-async fn open_cache_in_file_manager(_state: State<'_, AppState>) -> Result<(), String> {
-    let scanner = GitScanner::new()?;
-    let data_store = scanner.data_store;
-    let cache_path = data_store.get_cache_file_path();
-    
-    // Get the parent directory of the cache file
-    let parent_dir = cache_path.parent()
-        .ok_or("Could not get cache file parent directory")?;
-    
-    // Use the system's default file manager to open the directory
-    #[cfg(target_os = "macos")]
-    {
-        std::process::Command::new("open")
-            .arg(parent_dir)
-            .spawn()
-            .map_err(|e| format!("Failed to open file manager: {}", e))?;
-    }
-    
-    #[cfg(target_os = "windows")]
-    {
-        std::process::Command::new("explorer")
-            .arg(parent_dir)
-            .spawn()
-            .map_err(|e| format!("Failed to open file manager: {}", e))?;
-    }
-    
-    #[cfg(target_os = "linux")]
-    {
-        std::process::Command::new("xdg-open")
-            .arg(parent_dir)
-            .spawn()
-            .map_err(|e| format!("Failed to open file manager: {}", e))?;
-    }
-    
-    Ok(())
+async fn remove_repo_from_collection(
+    collection_id: String,
+    repo_path: String,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    let mut scanner = state.scanner.lock().await;
+    scanner
+        .data_store
+        .remove_repository_from_collection(&collection_id, &repo_path)
 }
 
 #[command]
-async fn delete_node_modules(repo_path: String, _state: State<'_, AppState>) -> Result<(), String> {
+async fn delete_node_modules(repo_path: String) -> Result<(), String> {
     use std::fs;
     use walkdir::WalkDir;
     
@@ -532,65 +426,43 @@ async fn get_optimization_stats() -> Result<serde_json::Value, String> {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    match GitScanner::new() {
-        Ok(scanner_instance) => {
-            let app_state = AppState {
-                scanner: Mutex::new(scanner_instance),
-            };
+    let scanner = GitScanner::new().expect("Failed to initialize GitScanner");
 
-            tauri::Builder::default()
-                .plugin(tauri_plugin_opener::init())
-                .manage(app_state)
-                .invoke_handler(tauri::generate_handler![
-                    greet,
-                    scan_repositories,
-                    scan_repositories_with_cache,
-                    load_cached_repositories,
-                    get_cache_info,
-                    clear_cache,
-                    cleanup_invalid_repositories,
-                    open_in_vscode,
-                    refresh_repository,
-                    list_directory_contents,
-                    read_file_content,
-                    open_in_file_manager,
-                    scan_custom_paths,
-                    refresh_cache,
-                    add_scan_path,
-                    remove_scan_path,
-                    get_scan_paths,
-                    delete_repository,
-                    toggle_repository_pin,
-                    get_pinned_repositories,
-                    create_collection,
-                    get_collections,
-                    add_repository_to_collection,
-                    remove_repository_from_collection,
-                    delete_collection,
-                    get_repositories_in_collection,
-                    get_cache_file_path,
-                    open_cache_in_file_manager,
-                    delete_node_modules,
-                    find_repositories_under_path,
-                    advanced_repository_search,
-                    get_repository_fast,
-                    get_optimization_stats,
-                    find_repositories_under_path,
-                    advanced_repository_search,
-                    get_repository_fast,
-                    get_optimization_stats
-                ])
-                .run(tauri::generate_context!())
-                .expect("error while running tauri application");
-        }
-        Err(e) => {
-            // Handle error during GitScanner initialization
-            // This is a critical startup error. For now, print to stderr.
-            // In a real app, you might show a dialog or log to a file.
-            eprintln!("Failed to initialize GitScanner: {}", e);
-            // Consider exiting or showing a minimal error UI if possible before Tauri fully starts.
-            // For simplicity here, we'll let it panic if we can't show UI.
-            panic!("Failed to initialize GitScanner: {}", e);
-        }
-    }
+    tauri::Builder::default()
+        .manage(AppState {
+            scanner: Mutex::new(scanner),
+        })
+        .invoke_handler(tauri::generate_handler![
+            greet,
+            scan_repositories,
+            scan_repositories_with_cache,
+            load_cached_repositories,
+            get_cache_info,
+            clear_cache,
+            cleanup_invalid_repositories,
+            open_in_vscode,
+            refresh_repository,
+            list_directory_contents,
+            read_file_content,
+            open_in_file_manager,
+            scan_custom_paths,
+            refresh_cache,
+            add_scan_path,
+            remove_scan_path,
+            get_scan_paths,
+            delete_repository,
+            toggle_repository_pin,
+            get_pinned_repositories,
+            create_collection,
+            get_collections,
+            add_repository_to_collection,
+            remove_repo_from_collection,
+            delete_collection,
+            get_repositories_in_collection,
+            delete_node_modules,
+            discover_repositories,
+            analyze_discovered_repositories
+        ])
+        .run(tauri::generate_context!())
+        .expect("error while running tauri application");
 }

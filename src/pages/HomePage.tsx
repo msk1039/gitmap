@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useRepositoryManager } from '../hooks/useRepositoryManager';
 import { GitRepository } from '../types/repository';
 import { RepositoryList } from '../components/RepositoryList';
-import { ScanProgress } from '../components/ScanProgress';
+import { ScanProgress, RepositoriesDiscoveredInfo, AnalysisInProgress } from '../components/ScanProgress';
 import { ScanDirectoryManager } from '../components/ScanDirectoryManager';
 import { Navigation } from '../components/Navigation';
 import { CollectionsSidebar } from '../components/CollectionsSidebar';
@@ -40,6 +40,8 @@ export const HomePage: React.FC = () => {
     refreshRepository,
     smartFilter,
     optimizedSearch,
+    discoveredRepos,
+    analysisProgress,
   } = useRepositoryManager();
 
   const handleDeleteNodeModules = async (repoPath: string) => {
@@ -166,7 +168,7 @@ export const HomePage: React.FC = () => {
               <div className='flex flex-col items-center justify-center mt-4 md:mt-40 border-t border-b p-4 w-full bg-[#f7faf6] inset-shadow-sm inset-shadow-lime-600/50'>
                 <div className='flex flex-col items-center justify-center px-4 mb-2'>
 
-              <h2 className='text-lg font-semibold'>Collections</h2>
+              <h2 className='text-base md:text-lg font-semibold'>Collections</h2>
               {/* <p className='text-sm text-muted-foreground'>Manage your collections of repositories</p> */}
                 </div>
               
@@ -187,8 +189,8 @@ export const HomePage: React.FC = () => {
             <div className="flex flex-col gap-4 sticky top-6 bg-background z-2">
               <div className="pt-12">
                 <div className='my-5'>
-                  <h1 className="text-2xl font-bold">Local Repositories</h1>
-                  <p className="text-sm text-muted-foreground">
+                  <h1 className="text-xl md:text-2xl font-bold">Local Repositories</h1>
+                  <p className="text-xs md:text-sm text-muted-foreground">
                     Discover and manage your local Git repositories
                   </p>
                 </div>
@@ -198,11 +200,11 @@ export const HomePage: React.FC = () => {
             
               <div className="grid lg:grid-cols-3  grid-cols-1 border w-full h-50 lg:h-15 shadow-md">
 
-               <div className="flex items-center justify-center gap-2 border-r border-b lg:border-b-0">
+                <div className="flex items-center justify-center gap-2 border-r border-b lg:border-b-0 p-2">
                   <ArrowUpDown className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-sm font-medium">Sort by:</span>
+                  <span className="text-xs md:text-sm font-medium text-nowrap">Sort by:</span>
                   <Select value={sortBy} onValueChange={(value: SortOption) => setSortBy(value)}>
-                    <SelectTrigger className="w-40 h-10 hover:cursor-pointer rounded-sm">
+                    <SelectTrigger className="w-32 md:w-40 h-10 hover:cursor-pointer rounded-sm">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -224,10 +226,10 @@ export const HomePage: React.FC = () => {
 
                  
                     <Input
-                    placeholder="Search repositories by name..."
+                    placeholder="Search repositories..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full border-0 shadow-none focus:border-0 focus:ring-0 focus-visible:ring-0 focus-visible:ring-offset-0"
+                    className="w-full border-0 shadow-none focus:border-0 focus:ring-0 focus-visible:ring-0 focus-visible:ring-offset-0 text-sm"
                     />
                   </div>
                   {/* {searchQuery && (
@@ -253,18 +255,18 @@ export const HomePage: React.FC = () => {
                     onClick={handleShowScanDialog}
                     disabled={isScanning}
                     size="sm"
-                    className="gap-2 h-10 hover:cursor-pointer"
+                    className="gap-2 h-10 hover:cursor-pointer text-xs md:text-sm"
                   >
                     {isScanning ? (
                       <RefreshCw className="h-4 w-4 animate-spin" />
                     ) : (
                       <Search className="h-4 w-4" />
                     )}
-                    {isScanning ? 'Scanning...' : 'Scan'}
+                    <span className="hidden sm:inline">{isScanning ? 'Scanning...' : 'Scan'}</span>
                   </Button>
                     </TooltipTrigger>
                     <TooltipContent>
-                      <p>Scan for new Repositories</p>
+                      <p className="text-xs">Scan for new Repositories</p>
                     </TooltipContent>
                   </Tooltip>
                    <Tooltip>
@@ -274,14 +276,14 @@ export const HomePage: React.FC = () => {
                     disabled={isScanning}
                     variant="outline"
                     size="sm"
-                    className="gap-2 h-10 hover:cursor-pointer shadow-sm"
+                    className="gap-2 h-10 hover:cursor-pointer shadow-sm text-xs md:text-sm"
                   >
                     <RefreshCw className="h-4 w-4" />
-                    Refresh
+                    <span className="hidden sm:inline">Refresh</span>
                   </Button>
                   </TooltipTrigger>
                     <TooltipContent>
-                      <p>Refresh cached data</p>
+                      <p className="text-xs">Refresh cached data</p>
                     </TooltipContent>
                   </Tooltip>
                 </div>
@@ -295,13 +297,23 @@ export const HomePage: React.FC = () => {
               {/* Error Display */}
               {error && (
                 <div className="bg-destructive/10 border border-destructive/20 text-destructive rounded-lg p-4">
-                  <p className="text-sm">❌ {error}</p>
+                  <p className="text-xs md:text-sm">❌ {error}</p>
                 </div>
               )}
 
               {/* Scan Progress */}
-              {isScanning && scanProgress && (
+              {isScanning && scanProgress && !discoveredRepos && (
                 <ScanProgress progress={scanProgress} />
+              )}
+
+              {/* Repositories Discovered */}
+              {discoveredRepos && (
+                <RepositoriesDiscoveredInfo info={discoveredRepos} />
+              )}
+
+              {/* Analysis Progress */}
+              {analysisProgress && (
+                <AnalysisInProgress progress={analysisProgress} />
               )}
             </div>
 
@@ -315,7 +327,7 @@ export const HomePage: React.FC = () => {
                 onTogglePin={togglePin}
                 onCollectionChange={handleCollectionAssignmentChange}
                 collectionRefreshTrigger={collectionsRefreshTrigger}
-                isLoading={(isScanning && !scanProgress) || isLoadingCollection || isInitialLoading}
+                isLoading={(isScanning && !scanProgress) || isLoadingCollection || isInitialLoading || analysisProgress !== null}
                 isInitialLoad={isInitialLoading}
                 onDeleteNodeModules={handleDeleteNodeModules}
               />
