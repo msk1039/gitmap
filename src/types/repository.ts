@@ -1,3 +1,15 @@
+export interface AnalysisProgress {
+  total: number;
+  current: number;
+  current_path: string;
+}
+
+export interface RepositoriesDiscovered {
+  count: number;
+  time_taken_ms: number;
+  repo_paths: string[];
+}
+
 export interface NodeModulesInfo {
   total_size_mb: number;
   count: number;
@@ -63,6 +75,23 @@ export interface Collection {
   color: string; // Theme color for the collection (hex color code)
   repository_paths: string[];
   created_at: string;
+}
+
+export interface SearchFilters {
+  namePrefix?: string;
+  minSizeMb?: number;
+  maxSizeMb?: number;
+  fileType?: string;
+  pathFilter?: string;
+}
+
+export interface OptimizationStats {
+  total_repositories: number;
+  lru_cache_size: number;
+  lru_cache_capacity: number;
+  index_name_entries: number;
+  index_size_ranges: number;
+  index_file_types: number;
 }
 
 export interface AppState {

@@ -27,5 +27,7 @@ _ui-reference
 documentation.md
 .vscode
 
-
+optimization.md
 plan.txt
+
+.copilotignore

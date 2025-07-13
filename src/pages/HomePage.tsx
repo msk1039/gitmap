@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useRepositoryManager } from '../hooks/useRepositoryManager';
 import { GitRepository } from '../types/repository';
 import { RepositoryList } from '../components/RepositoryList';
-import { ScanProgress } from '../components/ScanProgress';
+import { ScanProgress, RepositoriesDiscoveredInfo, AnalysisInProgress } from '../components/ScanProgress';
 import { ScanDirectoryManager } from '../components/ScanDirectoryManager';
 import { Navigation } from '../components/Navigation';
 import { CollectionsSidebar } from '../components/CollectionsSidebar';
@@ -38,6 +38,10 @@ export const HomePage: React.FC = () => {
     togglePin,
     loadCachedRepositories,
     refreshRepository,
+    smartFilter,
+    optimizedSearch,
+    discoveredRepos,
+    analysisProgress,
   } = useRepositoryManager();
 
   const handleDeleteNodeModules = async (repoPath: string) => {
@@ -76,51 +80,17 @@ export const HomePage: React.FC = () => {
       collectionFiltered = repositories.filter(repo => collectionPaths.has(repo.path));
     }
     
-    // Then filter by search query
-    const filtered = searchQuery.trim() 
-      ? collectionFiltered.filter(repo => 
-          repo.name.toLowerCase().includes(searchQuery.toLowerCase())
-        )
-      : collectionFiltered;
+    // Use optimized filtering and sorting
+    const result = smartFilter(collectionFiltered, searchQuery, sortBy);
     
-    console.log('After filtering:', filtered.length, 'repositories'); // Debug log
-    
-    // Separate pinned and unpinned repositories
-    const pinnedRepos = filtered.filter(repo => repo.is_pinned);
-    const unpinnedRepos = filtered.filter(repo => !repo.is_pinned);
-    
-    console.log('Pinned repos:', pinnedRepos.length, 'Unpinned repos:', unpinnedRepos.length); // Debug log
-    
-    // Apply sorting to both pinned and unpinned repositories
-    const sortFunction = (a: GitRepository, b: GitRepository) => {
-      switch (sortBy) {
-        case 'name':
-          return a.name.localeCompare(b.name);
-        case 'lastUpdated':
-          const dateA = a.last_commit_date ? new Date(a.last_commit_date).getTime() : 0;
-          const dateB = b.last_commit_date ? new Date(b.last_commit_date).getTime() : 0;
-          return dateB - dateA; // Most recent first
-        case 'size':
-          return b.size_mb - a.size_mb; // Largest first
-        default:
-          return 0;
-      }
-    };
-    
-    // Sort both pinned and unpinned repositories
-    const sortedPinnedRepos = [...pinnedRepos].sort(sortFunction);
-    const sortedUnpinnedRepos = [...unpinnedRepos].sort(sortFunction);
-    
-    // Combine sorted pinned repos first, then sorted unpinned repos
-    const result = [...sortedPinnedRepos, ...sortedUnpinnedRepos];
-    console.log('Final sorted result:', result.length, 'repositories'); // Debug log
+    console.log('After optimized filtering:', result.length, 'repositories'); // Debug log
     console.log('Final pinned repos in result:', result.filter(r => r.is_pinned).map(r => r.name)); // Debug log
     
     const endTime = performance.now();
-    console.log(`🔄 Filtering and sorting took: ${(endTime - startTime).toFixed(2)}ms`);
+    console.log(`🔄 Optimized filtering and sorting took: ${(endTime - startTime).toFixed(2)}ms`);
     
     return result;
-  }, [repositories, sortBy, searchQuery, selectedCollection, collectionRepositories]);
+  }, [repositories, sortBy, searchQuery, selectedCollection, collectionRepositories, smartFilter]);
 
   const handleCollectionChange = async (collectionId: string) => {
     console.log(`🕐 Starting collection change to: ${collectionId}`);
@@ -188,17 +158,17 @@ export const HomePage: React.FC = () => {
 
       <div className="flex min-h-[calc(100vh-3rem)] w-full items-stretch">
         {/* Collections Sidebar */}
-        <aside className="md:w-32 w-4 border-r"></aside>
+        <aside className="hidden md:block md:w-16 lg:w-32 w-4 border-r"></aside>
         
         <main className="h-full grow flex flex-col">
-          <div className="grid grid-cols-5 gap-4 w-full">
+          <div className="grid grid-cols-1 md:grid-cols-4 lg:grid-cols-5 gap-4 w-full">
 
-            <div className='col-span-1 w-full h-screen border-r flex flex-col items-center sticky top-0 bg-background pt-16'>
+            <div className='col-span-1 w-full md:h-screen border-r flex flex-col items-center md:sticky top-0 bg-background pt-16'>
               {/* collections list sidebar */}
-              <div className='flex flex-col items-center justify-center mt-40 border-t border-b p-4 w-full bg-[#f7faf6] inset-shadow-sm inset-shadow-lime-600/50'>
+              <div className='flex flex-col items-center justify-center mt-4 md:mt-40 border-t border-b p-4 w-full bg-[#f7faf6] inset-shadow-sm inset-shadow-lime-600/50'>
                 <div className='flex flex-col items-center justify-center px-4 mb-2'>
 
-              <h2 className='text-lg font-semibold'>Collections</h2>
+              <h2 className='text-base md:text-lg font-semibold'>Collections</h2>
               {/* <p className='text-sm text-muted-foreground'>Manage your collections of repositories</p> */}
                 </div>
               
@@ -215,12 +185,12 @@ export const HomePage: React.FC = () => {
               </div>
             </div>
             {/* Title and Controls Section */}
-            <div className='col-span-3 w-full flex flex-col'>
+            <div className='col-span-1 md:col-span-3 w-full flex flex-col'>
             <div className="flex flex-col gap-4 sticky top-6 bg-background z-2">
               <div className="pt-12">
                 <div className='my-5'>
-                  <h1 className="text-2xl font-bold">Local Repositories</h1>
-                  <p className="text-sm text-muted-foreground">
+                  <h1 className="text-xl md:text-2xl font-bold">Local Repositories</h1>
+                  <p className="text-xs md:text-sm text-muted-foreground">
                     Discover and manage your local Git repositories
                   </p>
                 </div>
@@ -230,11 +200,11 @@ export const HomePage: React.FC = () => {
             
               <div className="grid lg:grid-cols-3  grid-cols-1 border w-full h-50 lg:h-15 shadow-md">
 
-               <div className="flex items-center justify-center gap-2 border-r border-b lg:border-b-0">
+                <div className="flex items-center justify-center gap-2 border-r border-b lg:border-b-0 p-2">
                   <ArrowUpDown className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-sm font-medium">Sort by:</span>
+                  <span className="text-xs md:text-sm font-medium text-nowrap">Sort by:</span>
                   <Select value={sortBy} onValueChange={(value: SortOption) => setSortBy(value)}>
-                    <SelectTrigger className="w-40 h-10 hover:cursor-pointer rounded-sm">
+                    <SelectTrigger className="w-32 md:w-40 h-10 hover:cursor-pointer rounded-sm">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -256,10 +226,10 @@ export const HomePage: React.FC = () => {
 
                  
                     <Input
-                    placeholder="Search repositories by name..."
+                    placeholder="Search repositories..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full border-0 shadow-none focus:border-0 focus:ring-0 focus-visible:ring-0 focus-visible:ring-offset-0"
+                    className="w-full border-0 shadow-none focus:border-0 focus:ring-0 focus-visible:ring-0 focus-visible:ring-offset-0 text-sm"
                     />
                   </div>
                   {/* {searchQuery && (
@@ -285,18 +255,18 @@ export const HomePage: React.FC = () => {
                     onClick={handleShowScanDialog}
                     disabled={isScanning}
                     size="sm"
-                    className="gap-2 h-10 hover:cursor-pointer"
+                    className="gap-2 h-10 hover:cursor-pointer text-xs md:text-sm"
                   >
                     {isScanning ? (
                       <RefreshCw className="h-4 w-4 animate-spin" />
                     ) : (
                       <Search className="h-4 w-4" />
                     )}
-                    {isScanning ? 'Scanning...' : 'Scan'}
+                    <span className="hidden sm:inline">{isScanning ? 'Scanning...' : 'Scan'}</span>
                   </Button>
                     </TooltipTrigger>
                     <TooltipContent>
-                      <p>Scan for new Repositories</p>
+                      <p className="text-xs">Scan for new Repositories</p>
                     </TooltipContent>
                   </Tooltip>
                    <Tooltip>
@@ -306,14 +276,14 @@ export const HomePage: React.FC = () => {
                     disabled={isScanning}
                     variant="outline"
                     size="sm"
-                    className="gap-2 h-10 hover:cursor-pointer shadow-sm"
+                    className="gap-2 h-10 hover:cursor-pointer shadow-sm text-xs md:text-sm"
                   >
                     <RefreshCw className="h-4 w-4" />
-                    Refresh
+                    <span className="hidden sm:inline">Refresh</span>
                   </Button>
                   </TooltipTrigger>
                     <TooltipContent>
-                      <p>Refresh cached data</p>
+                      <p className="text-xs">Refresh cached data</p>
                     </TooltipContent>
                   </Tooltip>
                 </div>
@@ -327,13 +297,23 @@ export const HomePage: React.FC = () => {
               {/* Error Display */}
               {error && (
                 <div className="bg-destructive/10 border border-destructive/20 text-destructive rounded-lg p-4">
-                  <p className="text-sm">❌ {error}</p>
+                  <p className="text-xs md:text-sm">❌ {error}</p>
                 </div>
               )}
 
               {/* Scan Progress */}
-              {isScanning && scanProgress && (
+              {isScanning && scanProgress && !discoveredRepos && (
                 <ScanProgress progress={scanProgress} />
+              )}
+
+              {/* Repositories Discovered */}
+              {discoveredRepos && (
+                <RepositoriesDiscoveredInfo info={discoveredRepos} />
+              )}
+
+              {/* Analysis Progress */}
+              {analysisProgress && (
+                <AnalysisInProgress progress={analysisProgress} />
               )}
             </div>
 
@@ -347,18 +327,18 @@ export const HomePage: React.FC = () => {
                 onTogglePin={togglePin}
                 onCollectionChange={handleCollectionAssignmentChange}
                 collectionRefreshTrigger={collectionsRefreshTrigger}
-                isLoading={(isScanning && !scanProgress) || isLoadingCollection || isInitialLoading}
+                isLoading={(isScanning && !scanProgress) || isLoadingCollection || isInitialLoading || analysisProgress !== null}
                 isInitialLoad={isInitialLoading}
                 onDeleteNodeModules={handleDeleteNodeModules}
               />
             </div></div>
-      <div className='col-span-1 w-full border-l h-full flex flex-col'>
+      <div className='col-span-1 hidden lg:block w-full border-l h-full flex flex-col'>
 
             </div>
           </div>
         </main>
         
-        <aside className="md:w-32 w-4 border-l"></aside>
+        <aside className="hidden md:block md:w-16 lg:w-32 w-4 border-l"></aside>
       </div>
 
       {/* Scan Directory Manager Dialog */}

@@ -3,6 +3,20 @@ use chrono::{DateTime, Utc};
 use std::collections::HashMap;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct RepositoriesDiscovered {
+    pub count: usize,
+    pub time_taken_ms: u128,
+    pub repo_paths: Vec<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct AnalysisProgress {
+    pub total: usize,
+    pub current: usize,
+    pub current_path: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct NodeModulesInfo {
     pub total_size_mb: f64,
     pub count: u32,

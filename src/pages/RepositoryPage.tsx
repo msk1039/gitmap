@@ -127,14 +127,14 @@ export const RepositoryPage: React.FC = () => {
         </header>
 
         <div className="flex min-h-[calc(100vh-3rem)] w-full items-stretch">
-          <aside className="w-32 border-r"></aside>
+          <aside className="hidden md:block md:w-16 lg:w-32 w-4 border-r"></aside>
           <main className="h-full grow flex items-center justify-center">
             <div className="flex items-center gap-4">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
               <span className="text-lg">Loading repository details...</span>
             </div>
           </main>
-          <aside className="w-32 border-l"></aside>
+          <aside className="hidden md:block md:w-16 lg:w-32 w-4 border-l"></aside>
         </div>
       </div>
     );
@@ -188,7 +188,7 @@ export const RepositoryPage: React.FC = () => {
         </header>
 
         <div className="flex min-h-[calc(100vh-3rem)] w-full items-stretch">
-          <aside className="w-32 border-r"></aside>
+          <aside className="hidden md:block md:w-16 lg:w-32 w-4 border-r"></aside>
           <main className="h-full grow flex items-center justify-center">
             <div className="max-w-md text-center space-y-4">
               <h2 className="text-xl font-semibold text-destructive">Error Loading Repository</h2>
@@ -209,7 +209,7 @@ export const RepositoryPage: React.FC = () => {
               </div>
             </div>
           </main>
-          <aside className="w-32 border-l"></aside>
+          <aside className="hidden md:block md:w-16 lg:w-32 w-4 border-l"></aside>
         </div>
       </div>
     );
@@ -232,7 +232,7 @@ export const RepositoryPage: React.FC = () => {
         </header>
 
         <div className="flex min-h-[calc(100vh-3rem)] w-full items-stretch">
-          <aside className="w-32 border-r"></aside>
+          <aside className="hidden md:block md:w-16 lg:w-32 w-4 border-r"></aside>
           <main className="h-full grow flex items-center justify-center">
             <div className="text-center space-y-4">
               <h2 className="text-xl font-semibold">Repository Not Found</h2>
@@ -245,7 +245,7 @@ export const RepositoryPage: React.FC = () => {
               </button>
             </div>
           </main>
-          <aside className="w-32 border-l"></aside>
+          <aside className="hidden md:block md:w-16 lg:w-32 w-4 border-l"></aside>
         </div>
       </div>
     );
@@ -259,7 +259,7 @@ export const RepositoryPage: React.FC = () => {
       {/* Repository-specific breadcrumbs */}
       <div className='w-full mt-12 flex'>
 
-      <aside className="md:w-32 w-4 border-r "></aside>
+      <aside className="hidden md:block md:w-16 lg:w-32 w-4 border-r"></aside>
       <div className="border-b bg-background grow">
         <div className="mx-auto max-w-7xl px-6 py-2">
           <Breadcrumb>
@@ -284,10 +284,10 @@ export const RepositoryPage: React.FC = () => {
           </Breadcrumb>
         </div>
       </div>
-      <aside className="md:w-32 w-4 border-l"></aside>
+      <aside className="hidden md:block md:w-16 lg:w-32 w-4 border-l"></aside>
 </div>
       <div className="flex min-h-[calc(100vh-6rem)] w-full items-stretch">
-        <aside className="w-32 border-r"></aside>
+        <aside className="hidden md:block md:w-16 lg:w-32 w-4 border-r"></aside>
         <main className="h-full grow">
           <RepositoryDetail
             repository={repository}
@@ -299,7 +299,7 @@ export const RepositoryPage: React.FC = () => {
             onDeleteRepository={handleDeleteRepository}
           />
         </main>
-        <aside className="w-32 border-l"></aside>
+        <aside className="hidden md:block md:w-16 lg:w-32 w-4 border-l"></aside>
       </div>
     </div>
   );

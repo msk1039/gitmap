@@ -144,7 +144,7 @@ export const CollectionsSidebar: React.FC<CollectionsSidebarProps> = ({
             />
             <label
               htmlFor="all"
-              className="text-sm font-medium cursor-pointer flex items-center gap-2 h-10"
+              className="text-xs md:text-sm font-medium cursor-pointer flex items-center gap-2 h-10"
             >
               <FolderOpen className="h-4 w-4" />
               All Repositories
@@ -171,18 +171,20 @@ export const CollectionsSidebar: React.FC<CollectionsSidebarProps> = ({
                 />
                 <label
                   htmlFor={collection.id}
-                  className="text-sm font-medium cursor-pointer flex-1 truncate flex items-center h-full"
+                  className="text-xs md:text-sm font-medium cursor-pointer flex-1 min-w-0 flex items-center h-full"
                 >
                   <span 
-                    className="inline-block w-3 h-3 rounded-full mr-2" 
+                    className="inline-block w-3 h-3 rounded-full mr-2 flex-shrink-0" 
                     style={{ backgroundColor: collection.color }}
                   ></span>
-                  {collection.name}
-                  <span className="text-xs text-muted-foreground ml-2">
+                  <span className="truncate flex-1 min-w-0" title={collection.name}>
+                    {collection.name}
+                  </span>
+                  <span className="text-xs text-muted-foreground ml-2 flex-shrink-0">
                     ({collection.repository_paths.length})
                   </span>
                   {isLoadingCollection && selectedCollection === collection.id && (
-                    <Loader2 className="h-4 w-4 animate-spin text-blue-500 ml-2" />
+                    <Loader2 className="h-4 w-4 animate-spin text-blue-500 ml-2 flex-shrink-0" />
                   )}
                 </label>
               </div>
@@ -221,10 +223,11 @@ export const CollectionsSidebar: React.FC<CollectionsSidebarProps> = ({
           <Button 
         variant="outline" 
         size="sm" 
-        className="w-full gap-2 h-10 rounded-lg bg-gradient-to-r from-emerald-50 to-teal-50 border-emerald-200/50 hover:from-emerald-100 hover:to-teal-100 hover:border-emerald-300/60 transition-all duration-200 text-emerald-700 hover:text-emerald-800 shadow-sm hover:shadow-md mt-2"
+        className="w-full gap-2 h-10 rounded-lg bg-gradient-to-r from-emerald-50 to-teal-50 border-emerald-200/50 hover:from-emerald-100 hover:to-teal-100 hover:border-emerald-300/60 transition-all duration-200 text-emerald-700 hover:text-emerald-800 shadow-sm hover:shadow-md mt-2 text-xs md:text-sm"
           >
         <Plus className="h-4 w-4" />
-        New Collection
+        <span className="hidden sm:inline">New Collection</span>
+        <span className="sm:hidden">New</span>
           </Button>
         </DialogTrigger>
         <DialogContent className='w-[480px] bg-gradient-to-br from-white to-gray-50'>

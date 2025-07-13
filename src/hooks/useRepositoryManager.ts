@@ -1,7 +1,15 @@
 import { useState, useCallback, useEffect } from 'react';
 import { invoke } from '@tauri-apps/api/core';
+import {
+  GitRepository,
+  ScanProgress,
+  CacheInfo,
+  ScanPath,
+  RepositoriesDiscovered,
+  AnalysisProgress,
+} from '../types/repository';
+import { useOptimizedSearch } from './useOptimizedSearch';
 import { listen } from '@tauri-apps/api/event';
-import { GitRepository, ScanProgress, CacheInfo, ScanPath } from '../types/repository';
 
 export const useRepositoryManager = () => {
   const [repositories, setRepositories] = useState<GitRepository[]>([]);
@@ -9,13 +17,20 @@ export const useRepositoryManager = () => {
   const [scanProgress, setScanProgress] = useState<ScanProgress | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [cacheInfo, setCacheInfo] = useState<CacheInfo | null>(null);
+  const [discoveredRepos, setDiscoveredRepos] = useState<RepositoriesDiscovered | null>(null);
+  const [analysisProgress, setAnalysisProgress] = useState<AnalysisProgress | null>(null);
+
+  // Use optimized search capabilities
+  const optimizedSearch = useOptimizedSearch();
 
   // Load cached repositories on component mount
   useEffect(() => {
     loadCachedRepositories();
     loadCacheInfo();
+    optimizedSearch.loadOptimizationStats();
   }, []);
 
+  // Enhanced loadCachedRepositories with caching
   const loadCachedRepositories = useCallback(async () => {
     try {
       console.log('Loading cached repositories...'); // Debug log
@@ -58,6 +73,7 @@ export const useRepositoryManager = () => {
       });
       setRepositories(repos);
       await loadCacheInfo(); // Update cache info after scan
+      setError(null); // Clear any previous errors
     } catch (err) {
       setError(err as string);
     } finally {
@@ -68,16 +84,13 @@ export const useRepositoryManager = () => {
   const scanCustomPaths = useCallback(async (scanPaths: string[]) => {
     setIsScanning(true);
     setError(null);
-    
+    setScanProgress(null);
+    setDiscoveredRepos(null);
+    setAnalysisProgress(null);
     try {
-      const repos = await invoke<GitRepository[]>('scan_custom_paths', { 
-        scanPaths 
-      });
-      setRepositories(repos);
-      await loadCacheInfo(); // Update cache info after scan
+      await invoke('discover_repositories', { paths: scanPaths });
     } catch (err) {
       setError(err as string);
-    } finally {
       setIsScanning(false);
     }
   }, [loadCacheInfo]);
@@ -236,14 +249,45 @@ export const useRepositoryManager = () => {
 
   // Listen for scan progress updates
   useEffect(() => {
-    const unlistenProgress = listen<ScanProgress>('scan-progress', (event: any) => {
+    const unlistenScan = listen<ScanProgress>('scan-progress', (event) => {
       setScanProgress(event.payload);
     });
 
+    const unlistenDiscover = listen<RepositoriesDiscovered>('repositories-discovered', async (event) => {
+      setDiscoveredRepos(event.payload);
+      // Clear the initial scan progress since discovery is complete
+      setScanProgress(null);
+      // Now that we have the paths, start analysis
+      try {
+        const analyzed_repos: GitRepository[] = await invoke('analyze_discovered_repositories', {
+          repoPaths: event.payload.repo_paths,
+        });
+        setRepositories(analyzed_repos);
+        loadCacheInfo();
+        // Clear error on successful completion
+        setError(null);
+      } catch (err) {
+        setError(err as string);
+      } finally {
+        setIsScanning(false);
+        setAnalysisProgress(null);
+        // Clear discovered repos info after a short delay to let user see the result
+        setTimeout(() => {
+          setDiscoveredRepos(null);
+        }, 3000);
+      }
+    });
+
+    const unlistenAnalysis = listen<AnalysisProgress>('analysis-progress', (event) => {
+      setAnalysisProgress(event.payload);
+    });
+
     return () => {
-      unlistenProgress.then((fn: any) => fn());
+      unlistenScan.then(f => f());
+      unlistenDiscover.then(f => f());
+      unlistenAnalysis.then(f => f());
     };
-  }, []);
+  }, [loadCacheInfo]);
 
   // Listen for window focus to reload repositories when returning to the app
   useEffect(() => {
@@ -265,13 +309,15 @@ export const useRepositoryManager = () => {
     scanProgress,
     error,
     cacheInfo,
+    discoveredRepos,
+    analysisProgress,
+    loadCachedRepositories,
     scanRepositories,
     scanCustomPaths,
     clearCache,
     cleanupInvalidRepositories,
     openInVSCode,
     refreshRepository,
-    loadCachedRepositories,
     loadCacheInfo,
     openInFileManager,
     refreshCache,
@@ -283,5 +329,10 @@ export const useRepositoryManager = () => {
     getPinnedRepositories,
     getCacheFilePath,
     openCacheInFileManager,
+    // Optimized search capabilities
+    optimizedSearch,
+    searchByPath: optimizedSearch.searchByPath,
+    getRepositoryFast: optimizedSearch.getRepository,
+    smartFilter: optimizedSearch.filterAndSortRepositories,
   };
 };

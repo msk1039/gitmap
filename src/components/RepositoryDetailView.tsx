@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { RepositoryFileList } from './RepositoryFileList';
 import { ReadmeRenderer } from './ReadmeRenderer';
+import { formatSize } from '../lib/formatSize';
 import { 
   GitBranch, 
   ExternalLink, 
@@ -37,10 +38,10 @@ export const RepositoryDetail: React.FC<RepositoryDetailProps> = ({
     <div className="p-4 mx-auto md:max-w-7xl w-full flex flex-col gap-4">
       {/* Repository name and controls row */}
       <div className="flex flex-col gap-2">
-        <h1 className="text-xl font-semibold text-foreground">{repository.name}</h1>
-        <div className="flex items-center justify-between">
+        <h1 className="text-lg md:text-xl font-semibold text-foreground">{repository.name}</h1>
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-2">
           <div className="flex items-center gap-2">
-            <Badge variant="outline" className="gap-1">
+            <Badge variant="outline" className="gap-1 text-xs">
               <GitBranch className="h-3 w-3" />
               {repository.current_branch || 'Unknown'}
             </Badge>
@@ -48,53 +49,56 @@ export const RepositoryDetail: React.FC<RepositoryDetailProps> = ({
               {repository.is_valid ? 'Valid' : 'Invalid'}
             </Badge> */}
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <Button
               onClick={() => onOpenInVSCode(repository.path)}
               size="sm"
-              className="gap-2 hover:cursor-pointer"
+              className="gap-2 hover:cursor-pointer text-xs md:text-sm"
             >
               <ExternalLink className="h-4 w-4" />
-              Open in VS Code
+              <span className="hidden sm:inline">Open in VS Code</span>
+              <span className="sm:hidden">VS Code</span>
             </Button>
             {onOpenInFileManager && (
               <Button
                 onClick={() => onOpenInFileManager(repository.path)}
                 variant="outline"
                 size="sm"
-                className="gap-2 hover:cursor-pointer"
+                className="gap-2 hover:cursor-pointer text-xs md:text-sm"
               >
                 <FolderOpen className="h-4 w-4" />
-                Open in Files
+                <span className="hidden sm:inline">Open in Files</span>
+                <span className="sm:hidden">Files</span>
               </Button>
             )}
             <Button
               onClick={() => onRefresh(repository.path)}
               variant="outline"
               size="sm"
-              className="gap-2 hover:cursor-pointer"
+              className="gap-2 hover:cursor-pointer text-xs md:text-sm"
             >
               <RefreshCw className="h-4 w-4" />
-              Refresh
+              <span className="hidden sm:inline">Refresh</span>
             </Button>
             {onDeleteRepository && (
               <Button
                 onClick={() => setDeleteDialogOpen(true)}
                 variant="destructive"
                 size="sm"
-                className="gap-2 hover:cursor-pointer"
+                className="gap-2 hover:cursor-pointer text-xs md:text-sm"
               >
                 <Trash2 className="h-4 w-4" />
-                Delete Forever
+                <span className="hidden sm:inline">Delete Forever</span>
+                <span className="sm:hidden">Delete</span>
               </Button>
             )}
           </div>
         </div>
       </div>
 
-      <div className="w-full grid grid-cols-4 gap-8">
+      <div className="w-full grid grid-cols-1 lg:grid-cols-4 gap-4 md:gap-8">
         {/* File Browser and README */}
-        <div className="col-span-3 flex flex-col gap-4">
+        <div className="lg:col-span-3 flex flex-col gap-4">
           <div className="border">
             <RepositoryFileList
               directoryListing={directoryListing}
@@ -107,31 +111,31 @@ export const RepositoryDetail: React.FC<RepositoryDetailProps> = ({
         </div>
 
         {/* Repository Info Sidebar */}
-        <div className="col-span-1 flex flex-col gap-2">
+        <div className="lg:col-span-1 flex flex-col gap-2">
           {/* About Section */}
           <section className="flex flex-col gap-2">
             <div>
-              <h2 className="font-bold">About</h2>
+              <h2 className="font-bold text-sm md:text-base">About</h2>
               <div className="space-y-3 mt-2">
                 <div>
-                  <p className="text-sm font-medium text-muted-foreground">Size</p>
-                  <p className="text-sm">{(repository.size_mb / 1024).toFixed(2)} GB</p>
+                  <p className="text-xs md:text-sm font-medium text-muted-foreground">Size</p>
+                  <p className="text-xs md:text-sm">{formatSize(repository.size_mb)}</p>
                 </div>
                 
                 <div>
-                  <p className="text-sm font-medium text-muted-foreground">Current Branch</p>
-                  <p className="text-sm">{repository.current_branch || 'Unknown'}</p>
+                  <p className="text-xs md:text-sm font-medium text-muted-foreground">Current Branch</p>
+                  <p className="text-xs md:text-sm">{repository.current_branch || 'Unknown'}</p>
                 </div>
                 
                 <div>
-                  <p className="text-sm font-medium text-muted-foreground">Total Commits</p>
-                  <p className="text-sm">{repository.commit_count.toLocaleString()}</p>
+                  <p className="text-xs md:text-sm font-medium text-muted-foreground">Total Commits</p>
+                  <p className="text-xs md:text-sm">{repository.commit_count.toLocaleString()}</p>
                 </div>
                 
                 {repository.last_commit_date && (
                   <div>
-                    <p className="text-sm font-medium text-muted-foreground">Last Commit</p>
-                    <p className="text-sm">
+                    <p className="text-xs md:text-sm font-medium text-muted-foreground">Last Commit</p>
+                    <p className="text-xs md:text-sm">
                       {new Date(repository.last_commit_date).toLocaleDateString()}
                     </p>
                   </div>
@@ -139,12 +143,12 @@ export const RepositoryDetail: React.FC<RepositoryDetailProps> = ({
                 
                 {repository.remote_url && (
                   <div>
-                    <p className="text-sm font-medium text-muted-foreground">Remote URL</p>
+                    <p className="text-xs md:text-sm font-medium text-muted-foreground">Remote URL</p>
                     <a 
                       href={repository.remote_url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-sm text-primary hover:underline break-all"
+                      className="text-xs md:text-sm text-primary hover:underline break-all"
                     >
                       {repository.remote_url}
                     </a>
@@ -173,7 +177,7 @@ export const RepositoryDetail: React.FC<RepositoryDetailProps> = ({
           {/* Branches Section */}
           {repository.branches.length > 0 && (
             <section className="space-y-2 mt-6">
-              <h3 className="font-semibold flex items-center gap-2">
+              <h3 className="font-semibold flex items-center gap-2 text-sm md:text-base">
                 <GitBranch className="h-4 w-4" />
                 Branches ({repository.branches.length})
               </h3>
@@ -190,7 +194,7 @@ export const RepositoryDetail: React.FC<RepositoryDetailProps> = ({
                     {branch === repository.current_branch && (
                       <span className="mr-1">●</span>
                     )}
-                    {branch}
+                    <span className="truncate block" title={branch}>{branch}</span>
                   </div>
                 ))}
                 {repository.branches.length > 10 && (
