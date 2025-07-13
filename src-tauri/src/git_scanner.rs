@@ -663,7 +663,7 @@ impl GitScanner {
 fn is_hidden(entry: &walkdir::DirEntry) -> bool {
     entry.file_name()
          .to_str()
-         .map(|s| s.starts_with('.') || s == "node_modules" || s == "vendor" || s == "target")
+         .map(|s| s.starts_with('.') || s == "node_modules" || s == "vendor" || s == "target" || s == "build")
          .unwrap_or(false)
 }
 

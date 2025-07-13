@@ -1,5 +1,6 @@
 import React from 'react';
 import { DirectoryListing, FileEntry } from '../types/repository';
+import { formatFileSize } from '../lib/formatSize';
 import {
   Table,
   TableBody,
@@ -83,19 +84,6 @@ const getFileIcon = (entry: FileEntry) => {
     default:
       return <File className="h-5 w-5 text-muted-foreground" />;
   }
-};
-
-const formatFileSize = (bytes: number): string => {
-  const units = ['B', 'KB', 'MB', 'GB'];
-  let size = bytes;
-  let unitIndex = 0;
-  
-  while (size >= 1024 && unitIndex < units.length - 1) {
-    size /= 1024;
-    unitIndex++;
-  }
-  
-  return `${size.toFixed(1)} ${units[unitIndex]}`;
 };
 
 export const RepositoryFileList: React.FC<RepositoryFileListProps> = ({

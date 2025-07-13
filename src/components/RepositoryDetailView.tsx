@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { RepositoryFileList } from './RepositoryFileList';
 import { ReadmeRenderer } from './ReadmeRenderer';
+import { formatSize } from '../lib/formatSize';
 import { 
   GitBranch, 
   ExternalLink, 
@@ -118,7 +119,7 @@ export const RepositoryDetail: React.FC<RepositoryDetailProps> = ({
               <div className="space-y-3 mt-2">
                 <div>
                   <p className="text-xs md:text-sm font-medium text-muted-foreground">Size</p>
-                  <p className="text-xs md:text-sm">{(repository.size_mb / 1024).toFixed(2)} GB</p>
+                  <p className="text-xs md:text-sm">{formatSize(repository.size_mb)}</p>
                 </div>
                 
                 <div>

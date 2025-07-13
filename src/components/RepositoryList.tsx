@@ -6,6 +6,7 @@ import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { CollectionAssignmentDialog } from './CollectionAssignmentDialog';
 import { CollectionBadges } from './CollectionBadges';
+import { formatSize } from '../lib/formatSize';
 import { GitBranch, Folder, FolderOpen, Pin, Tags, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { HardDrive } from 'lucide-react';
@@ -49,13 +50,6 @@ export const RepositoryList: React.FC<RepositoryListProps> = ({
   console.log('Pinned repositories:', repositories.filter(r => r.is_pinned).length);
   console.log('Repositories data:', repositories.map(r => ({ name: r.name, pinned: r.is_pinned })));
   
-  const formatSize = (sizeMb: number) => {
-    if (sizeMb > 1024) {
-      return `${(sizeMb / 1024).toFixed(1)} GB`;
-    }
-    return `${sizeMb.toFixed(1)} MB`;
-  };
-
   const formatDate = (dateString?: string) => {
     if (!dateString) return 'Unknown';
     return new Date(dateString).toLocaleDateString();
