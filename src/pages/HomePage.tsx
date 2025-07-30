@@ -39,7 +39,7 @@ export const HomePage: React.FC = () => {
     loadCachedRepositories,
     refreshRepository,
     smartFilter,
-    optimizedSearch,
+    // optimizedSearch,  replaced this by smart filter(trie based)
     discoveredRepos,
     analysisProgress,
   } = useRepositoryManager();

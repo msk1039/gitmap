@@ -24,65 +24,9 @@ https://github.com/user-attachments/assets/98e7dcab-b82b-4838-b449-3d9ad6a4ed55
 
 ### Prerequisites
 
-Before you can develop or build this application, you need to install the following system dependencies based on your operating system:
+For system dependencies and Rust installation, please refer to the [official Tauri prerequisites documentation](https://v2.tauri.app/start/prerequisites/).
 
-#### System Dependencies
-
-**Windows:**
-1. **Microsoft C++ Build Tools** ( please refer to https://v2.tauri.app/start/prerequisites/ for more details)
-   - Download the [Microsoft C++ Build Tools](https://visualstudio.microsoft.com/visual-cpp-build-tools/) installer
-   - During installation, check the "Desktop development with C++" option
-   
-2. **WebView2** (Windows 10 version 1803+ already has this installed)
-   - If needed, download from [WebView2 Runtime download section](https://developer.microsoft.com/en-us/microsoft-edge/webview2/#download-section)
-   - Install the "Evergreen Bootstrapper"
-
-**macOS:**
-- **Xcode** Command Line Tools
-    - ```xcode-select --install```
-  
-
-**Linux (Debian/Ubuntu):**
-```bash
-sudo apt update
-sudo apt install libwebkit2gtk-4.1-dev \
-  build-essential \
-  curl \
-  wget \
-  file \
-  libxdo-dev \
-  libssl-dev \
-  libayatana-appindicator3-dev \
-  librsvg2-dev
-```
-
-**Linux (Arch):**
-```bash
-sudo pacman -S webkit2gtk-4.1 base-devel curl wget file xdotool openssl \
-  libayatana-appindicator librsvg
-```
-
-**Linux (Fedora):**
-```bash
-sudo dnf install webkit2gtk4.1-devel openssl-devel curl wget file \
-  libxdo-devel \
-  @development-tools
-```
-
-#### Rust Installation
-
-**Windows:**
-1. Download and run [rustup-init.exe](https://forge.rust-lang.org/infra/channel-layout.html#rustup)
-2. Follow the installation prompts
-3. Restart your terminal/command prompt
-
-**macOS & Linux:**
-```bash
-curl --proto '=https' --tlsv1.2 https://sh.rustup.rs -sSf | sh
-```
-Restart your terminal after installation.
-
-#### Node.js (Optional - only if using JavaScript frontend)
+#### Node.js (Required for frontend development)
 - Download and install the LTS version from [Node.js website](https://nodejs.org/)
 - Verify installation:
 ```bash
@@ -135,7 +79,7 @@ pnpm tauri build
 # Or with npm
 npm run tauri build
 ```
-
+<!-- 
 #### Cross-Platform Builds
 
 **Note:** Cross-compilation is complex and generally requires the target platform for optimal results.
@@ -156,7 +100,7 @@ pnpm tauri build --target x86_64-pc-windows-msvc
 ```bash
 # Requires Linux system
 pnpm tauri build --target x86_64-unknown-linux-gnu
-```
+``` -->
 
 ## Project Structure
 
