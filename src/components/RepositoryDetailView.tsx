@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { RepositoryFileList } from './RepositoryFileList';
 import { ReadmeRenderer } from './ReadmeRenderer';
+import { LanguageIcons } from './LanguageIcons';
 import { formatSize } from '../lib/formatSize';
 import { 
   GitBranch, 
@@ -34,11 +35,15 @@ export const RepositoryDetail: React.FC<RepositoryDetailProps> = ({
   isLoading = false
 }) => {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [showReadme, setShowReadme] = useState(true);
   return (
     <div className="p-4 mx-auto md:max-w-7xl w-full flex flex-col gap-4">
       {/* Repository name and controls row */}
       <div className="flex flex-col gap-2">
-        <h1 className="text-lg md:text-xl font-semibold text-foreground">{repository.name}</h1>
+        <div className="flex flex-wrap items-center gap-3">
+          <h1 className="text-lg md:text-xl font-semibold text-foreground">{repository.name}</h1>
+          <LanguageIcons fileTypes={repository.file_types} limit={5} />
+        </div>
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-2">
           <div className="flex items-center gap-2">
             <Badge variant="outline" className="gap-1 text-xs">
@@ -99,15 +104,15 @@ export const RepositoryDetail: React.FC<RepositoryDetailProps> = ({
       <div className="w-full grid grid-cols-1 lg:grid-cols-4 gap-4 md:gap-8">
         {/* File Browser and README */}
         <div className="lg:col-span-3 flex flex-col gap-4">
-          <div className="border">
-            <RepositoryFileList
-              directoryListing={directoryListing}
-              isLoading={isLoading}
-            />
-          </div>
+          <RepositoryFileList
+            repositoryPath={repository.path}
+            directoryListing={directoryListing}
+            isLoading={isLoading}
+            onBrowseStateChange={setShowReadme}
+          />
 
           {/* README Renderer */}
-          <ReadmeRenderer repositoryPath={repository.path} />
+          {showReadme && <ReadmeRenderer repositoryPath={repository.path} />}
         </div>
 
         {/* Repository Info Sidebar */}
@@ -157,19 +162,11 @@ export const RepositoryDetail: React.FC<RepositoryDetailProps> = ({
               </div>
             </div>
             
-            {/* File Types as badges */}
+            {/* Primary languages */}
             {Object.keys(repository.file_types).length > 0 && (
               <div className="mt-4">
-                <div className="flex flex-wrap gap-1">
-                  {Object.entries(repository.file_types)
-                    .sort(([,a], [,b]) => b - a)
-                    .slice(0, 6)
-                    .map(([ext, count]) => (
-                    <Badge key={ext} variant="secondary" className="text-xs">
-                      .{ext} ({count})
-                    </Badge>
-                  ))}
-                </div>
+                <p className="mb-2 text-xs font-medium text-muted-foreground">Languages</p>
+                <LanguageIcons fileTypes={repository.file_types} limit={6} />
               </div>
             )}
           </section>

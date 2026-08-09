@@ -10,12 +10,23 @@ export interface RepositoriesDiscovered {
   repo_paths: string[];
 }
 
-export interface NodeModulesInfo {
-  total_size_mb: number;
-  count: number;
-  paths: string[];
+export interface CleanableItem {
+  path: string;
+  relative_path: string;
+  category: string;
+  is_directory: boolean;
+  size_bytes: number;
+}
+
+export interface CleanableInfo {
+  total_size_bytes: number;
+  item_count: number;
   last_scanned: string;
-  package_json_modified: string;
+}
+
+export interface CleanupDeletionResult {
+  deleted_paths: string[];
+  deleted_size_bytes: number;
 }
 
 export interface FileEntry {
@@ -46,7 +57,8 @@ export interface GitRepository {
   is_valid: boolean;
   is_pinned: boolean;
   pinned_at?: string;
-  node_modules_info?: NodeModulesInfo;
+  cleanable_info?: CleanableInfo;
+  cleanup_scan_version: number;
 }
 
 export interface ScanProgress {

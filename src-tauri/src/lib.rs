@@ -2,14 +2,17 @@ mod repo_types;
 mod git_scanner;
 mod data_store;
 mod optimizations;
+mod cleanup;
 
-use repo_types::{GitRepository, FileEntry, DirectoryListing, Collection};
+use repo_types::{CleanableItem, CleanupDeletionResult, GitRepository, FileEntry, DirectoryListing, Collection};
 use git_scanner::GitScanner;
 use data_store::CacheInfo;
 use tauri::{command, Window, State};
 use tauri::async_runtime::Mutex;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::fs;
+
+const MAX_VIEWABLE_FILE_SIZE_BYTES: u64 = 1_048_576;
 
 struct AppState {
     scanner: Mutex<GitScanner>,
@@ -64,6 +67,41 @@ async fn get_cache_info(state: State<'_, AppState>) -> Result<CacheInfo, String>
 }
 
 #[command]
+async fn get_cache_file_path(state: State<'_, AppState>) -> Result<String, String> {
+    let scanner = state.scanner.lock().await;
+    Ok(scanner.data_store.get_cache_file_path_string())
+}
+
+#[command]
+async fn open_cache_in_file_manager(state: State<'_, AppState>) -> Result<(), String> {
+    use std::process::Command;
+
+    let cache_file_path = {
+        let scanner = state.scanner.lock().await;
+        scanner.data_store.get_cache_file_path_string()
+    };
+
+    let result = if cfg!(target_os = "macos") {
+        Command::new("open").arg("-R").arg(&cache_file_path).spawn()
+    } else if cfg!(target_os = "windows") {
+        Command::new("explorer")
+            .arg(format!("/select,{}", cache_file_path))
+            .spawn()
+    } else if cfg!(target_os = "linux") {
+        let parent_directory = Path::new(&cache_file_path)
+            .parent()
+            .ok_or("Cache file does not have a parent directory")?;
+        Command::new("xdg-open").arg(parent_directory).spawn()
+    } else {
+        return Err("Unsupported operating system".to_string());
+    };
+
+    result
+        .map(|_| ())
+        .map_err(|error| format!("Failed to open cache location: {error}"))
+}
+
+#[command]
 async fn clear_cache(state: State<'_, AppState>) -> Result<(), String> {
     let scanner = state.scanner.lock().await;
     scanner.clear_cache()
@@ -97,45 +135,48 @@ async fn refresh_repository(repo_path: String, state: State<'_, AppState>) -> Re
 }
 
 #[command]
-async fn list_directory_contents(repo_path: String) -> Result<DirectoryListing, String> {
+async fn list_directory_contents(repo_path: String, root_path: String) -> Result<DirectoryListing, String> {
     use chrono::{DateTime, Utc};
-    
-    let path = Path::new(&repo_path);
-    
-    if !path.exists() {
-        return Err(format!("Path does not exist: {}", repo_path));
-    }
-    
+
+    let root = resolve_path_within_root(&root_path, &root_path)?;
+    let path = resolve_path_within_root(&root_path, &repo_path)?;
+
     if !path.is_dir() {
         return Err(format!("Path is not a directory: {}", repo_path));
     }
     
     let mut entries = Vec::new();
     
-    match fs::read_dir(path) {
+    match fs::read_dir(&path) {
         Ok(dir_entries) => {
             for entry in dir_entries {
                 match entry {
                     Ok(dir_entry) => {
                         let entry_path = dir_entry.path();
+                        let canonical_entry_path = match fs::canonicalize(&entry_path) {
+                            Ok(path) if path.starts_with(&root) => path,
+                            Ok(_) => continue,
+                            Err(_) => continue,
+                        };
                         let name = entry_path.file_name()
                             .and_then(|n| n.to_str())
                             .unwrap_or("Unknown")
                             .to_string();
                         
-                        // Skip hidden files and directories starting with .
-                        if name.starts_with('.') {
+                        // Keep repository dotfiles visible (for example, .gitignore and .github)
+                        // just like GitHub, but never expose Git's internal metadata or Finder noise.
+                        if name == ".git" || name == ".DS_Store" {
                             continue;
                         }
                         
-                        let is_directory = entry_path.is_dir();
+                        let is_directory = canonical_entry_path.is_dir();
                         let size = if is_directory {
                             None
                         } else {
-                            dir_entry.metadata().ok().map(|m| m.len())
+                            fs::metadata(&canonical_entry_path).ok().map(|m| m.len())
                         };
                         
-                        let modified = dir_entry.metadata()
+                        let modified = fs::metadata(&canonical_entry_path)
                             .and_then(|m| m.modified())
                             .ok()
                             .and_then(|time| {
@@ -148,7 +189,7 @@ async fn list_directory_contents(repo_path: String) -> Result<DirectoryListing, 
                         
                         entries.push(FileEntry {
                             name,
-                            path: entry_path.to_string_lossy().to_string(),
+                            path: canonical_entry_path.to_string_lossy().to_string(),
                             is_directory,
                             size,
                             modified,
@@ -177,14 +218,42 @@ async fn list_directory_contents(repo_path: String) -> Result<DirectoryListing, 
     });
     
     Ok(DirectoryListing {
-        path: repo_path,
+        path: path.to_string_lossy().to_string(),
         entries,
     })
 }
 
 #[command]
-async fn read_file_content(file_path: String) -> Result<String, String> {
-    fs::read_to_string(file_path).map_err(|e| e.to_string())
+async fn read_file_content(file_path: String, root_path: String) -> Result<String, String> {
+    let path = resolve_path_within_root(&root_path, &file_path)?;
+    let metadata = fs::metadata(&path).map_err(|error| format!("Unable to inspect file: {error}"))?;
+
+    if !metadata.is_file() {
+        return Err("Path is not a regular file".to_string());
+    }
+
+    if metadata.len() > MAX_VIEWABLE_FILE_SIZE_BYTES {
+        return Err(format!(
+            "This file is too large to preview ({} bytes; limit is {} MiB)",
+            metadata.len(),
+            MAX_VIEWABLE_FILE_SIZE_BYTES / 1_048_576,
+        ));
+    }
+
+    fs::read_to_string(path).map_err(|error| format!("Unable to read UTF-8 text file: {error}"))
+}
+
+fn resolve_path_within_root(root_path: &str, candidate_path: &str) -> Result<PathBuf, String> {
+    let root = fs::canonicalize(root_path)
+        .map_err(|error| format!("Repository root does not exist: {error}"))?;
+    let candidate = fs::canonicalize(candidate_path)
+        .map_err(|error| format!("Path does not exist: {error}"))?;
+
+    if candidate.starts_with(&root) {
+        Ok(candidate)
+    } else {
+        Err("Path must stay inside the selected repository".to_string())
+    }
 }
 
 // Keep the existing greet command for compatibility
@@ -278,7 +347,7 @@ async fn delete_repository(repo_path: String, state: State<'_, AppState>) -> Res
 // Pin-related commands
 #[command]
 async fn toggle_repository_pin(repo_path: String, state: State<'_, AppState>) -> Result<GitRepository, String> {
-    let mut scanner = state.scanner.lock().await;
+    let scanner = state.scanner.lock().await;
     scanner.data_store.toggle_repository_pin(&repo_path)
 }
 
@@ -322,7 +391,7 @@ async fn get_repositories_in_collection(
 
 #[command]
 async fn delete_collection(collection_id: String, state: State<'_, AppState>) -> Result<(), String> {
-    let mut scanner = state.scanner.lock().await;
+    let scanner = state.scanner.lock().await;
     scanner.data_store.delete_collection(&collection_id)
 }
 
@@ -332,60 +401,23 @@ async fn remove_repo_from_collection(
     repo_path: String,
     state: State<'_, AppState>,
 ) -> Result<(), String> {
-    let mut scanner = state.scanner.lock().await;
+    let scanner = state.scanner.lock().await;
     scanner
         .data_store
         .remove_repository_from_collection(&collection_id, &repo_path)
 }
 
 #[command]
-async fn delete_node_modules(repo_path: String) -> Result<(), String> {
-    use std::fs;
-    use walkdir::WalkDir;
-    
-    let repo_path = Path::new(&repo_path);
-    
-    if !repo_path.exists() {
-        return Err("Repository path does not exist".to_string());
-    }
-    
-    // Look for node_modules directories in the repository
-    let walker = WalkDir::new(repo_path)
-        .max_depth(3) // Don't go too deep to avoid nested node_modules
-        .into_iter()
-        .filter_map(|e| e.ok())
-        .filter(|entry| {
-            entry.file_type().is_dir() && 
-            entry.file_name() == "node_modules"
-        });
-    
-    let mut deleted_count = 0;
-    let mut errors = Vec::new();
-    
-    for entry in walker {
-        let node_modules_path = entry.path();
-        match fs::remove_dir_all(node_modules_path) {
-            Ok(_) => {
-                deleted_count += 1;
-                println!("Deleted node_modules at: {}", node_modules_path.display());
-            }
-            Err(e) => {
-                let error_msg = format!("Failed to delete {}: {}", node_modules_path.display(), e);
-                errors.push(error_msg);
-            }
-        }
-    }
-    
-    if !errors.is_empty() {
-        return Err(format!("Deleted {} node_modules directories but encountered errors: {}", 
-                          deleted_count, errors.join("; ")));
-    }
-    
-    if deleted_count == 0 {
-        return Err("No node_modules directories found to delete".to_string());
-    }
-    
-    Ok(())
+async fn list_cleanable_items(repo_path: String) -> Result<Vec<CleanableItem>, String> {
+    cleanup::scan_cleanable_items(Path::new(&repo_path))
+}
+
+#[command]
+async fn delete_cleanable_items(
+    repo_path: String,
+    selected_paths: Vec<String>,
+) -> Result<CleanupDeletionResult, String> {
+    cleanup::delete_cleanable_items(Path::new(&repo_path), &selected_paths)
 }
 
 // === OPTIMIZED SEARCH COMMANDS ===
@@ -438,6 +470,8 @@ pub fn run() {
             scan_repositories_with_cache,
             load_cached_repositories,
             get_cache_info,
+            get_cache_file_path,
+            open_cache_in_file_manager,
             clear_cache,
             cleanup_invalid_repositories,
             open_in_vscode,
@@ -459,7 +493,8 @@ pub fn run() {
             remove_repo_from_collection,
             delete_collection,
             get_repositories_in_collection,
-            delete_node_modules,
+            list_cleanable_items,
+            delete_cleanable_items,
             discover_repositories,
             analyze_discovered_repositories
         ])

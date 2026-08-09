@@ -1,16 +1,19 @@
-import React, { useState } from 'react';
-import { GitRepository } from '../types/repository';
+import React, { useEffect, useState } from 'react';
+import { CleanableItem, CleanupDeletionResult, GitRepository } from '../types/repository';
 import { Button } from "@/components/ui/button";
 import { Toggle } from "@/components/ui/toggle";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { CollectionAssignmentDialog } from './CollectionAssignmentDialog';
 import { CollectionBadges } from './CollectionBadges';
-import { formatSize } from '../lib/formatSize';
-import { GitBranch, Folder, FolderOpen, Pin, Tags, RefreshCw } from "lucide-react";
+import { formatFileSize, formatSize } from '../lib/formatSize';
+import { ChevronLeft, ChevronRight, GitBranch, Folder, FolderOpen, Pin, Tags, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { HardDrive } from 'lucide-react';
 import { GitCommitVertical } from 'lucide-react';
+import { invoke } from '@tauri-apps/api/core';
+import { LanguageIcons } from './LanguageIcons';
 
 
 interface RepositoryListProps {
@@ -23,7 +26,7 @@ interface RepositoryListProps {
   collectionRefreshTrigger?: number;
   isLoading?: boolean;
   isInitialLoad?: boolean; // Add this to distinguish initial load from collection switching
-  onDeleteNodeModules?: (repoPath: string) => Promise<void>;
+  onDeleteCleanableItems?: (repoPath: string, selectedPaths: string[]) => Promise<CleanupDeletionResult>;
 }
 
 export const RepositoryList: React.FC<RepositoryListProps> = ({ 
@@ -36,38 +39,116 @@ export const RepositoryList: React.FC<RepositoryListProps> = ({
   collectionRefreshTrigger,
   isLoading = false,
   isInitialLoad = false,
-  onDeleteNodeModules
+  onDeleteCleanableItems
 }) => {
+  const repositoriesPerPage = 20;
   const [collectionDialogOpen, setCollectionDialogOpen] = useState(false);
   const [selectedRepository, setSelectedRepository] = useState<GitRepository | null>(null);
-  const [deleteNodeModulesDialogOpen, setDeleteNodeModulesDialogOpen] = useState(false);
-  const [repositoryToDeleteNodeModules, setRepositoryToDeleteNodeModules] = useState<GitRepository | null>(null);
-  const [isDeletingNodeModules, setIsDeletingNodeModules] = useState(false);
+  const [cleanupDialogOpen, setCleanupDialogOpen] = useState(false);
+  const [repositoryToClean, setRepositoryToClean] = useState<GitRepository | null>(null);
+  const [cleanableItems, setCleanableItems] = useState<CleanableItem[]>([]);
+  const [selectedCleanablePaths, setSelectedCleanablePaths] = useState<Set<string>>(new Set());
+  const [isLoadingCleanableItems, setIsLoadingCleanableItems] = useState(false);
+  const [isDeletingCleanableItems, setIsDeletingCleanableItems] = useState(false);
   const [deletingRepositoryPaths, setDeletingRepositoryPaths] = useState<Set<string>>(new Set());
+  const [currentPage, setCurrentPage] = useState(1);
 
-  // Debug logging with performance timing
-  console.log('🎨 RepositoryList rendered with:', repositories.length, 'repositories');
-  console.log('Pinned repositories:', repositories.filter(r => r.is_pinned).length);
-  console.log('Repositories data:', repositories.map(r => ({ name: r.name, pinned: r.is_pinned })));
-  
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [repositories]);
+
   const formatDate = (dateString?: string) => {
     if (!dateString) return 'Unknown';
     return new Date(dateString).toLocaleDateString();
   };
 
-  const getTopFileTypes = (fileTypes: Record<string, number>) => {
-    return Object.entries(fileTypes)
-      .sort(([,a], [,b]) => b - a)
-      .slice(0, 2)
-      .map(([ext]) => ext)
-      .join(', ');
+  const handleOpenCleanupDialog = (repo: GitRepository) => {
+    if (!onDeleteCleanableItems) return;
+
+    setRepositoryToClean(repo);
+    setCleanupDialogOpen(true);
   };
 
-  const handleDeleteNodeModules = async (repo: GitRepository) => {
-    if (!onDeleteNodeModules) return;
-    
-    setRepositoryToDeleteNodeModules(repo);
-    setDeleteNodeModulesDialogOpen(true);
+  const handleCleanupDialogOpenChange = (open: boolean) => {
+    if (isDeletingCleanableItems) return;
+
+    setCleanupDialogOpen(open);
+    if (!open) {
+      setRepositoryToClean(null);
+      setCleanableItems([]);
+      setSelectedCleanablePaths(new Set());
+    }
+  };
+
+  useEffect(() => {
+    if (!cleanupDialogOpen || !repositoryToClean) return;
+
+    let cancelled = false;
+    setIsLoadingCleanableItems(true);
+    setCleanableItems([]);
+    setSelectedCleanablePaths(new Set());
+
+    void invoke<CleanableItem[]>('list_cleanable_items', { repoPath: repositoryToClean.path })
+      .then((items) => {
+        if (cancelled) return;
+        setCleanableItems(items);
+        setSelectedCleanablePaths(new Set(items.map((item) => item.path)));
+      })
+      .catch((error) => {
+        if (!cancelled) {
+          toast.error(`Failed to inspect cleanable items: ${error}`);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setIsLoadingCleanableItems(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [cleanupDialogOpen, repositoryToClean]);
+
+  const toggleCleanableItem = (path: string, checked: boolean) => {
+    setSelectedCleanablePaths((current) => {
+      const next = new Set(current);
+      if (checked) {
+        next.add(path);
+      } else {
+        next.delete(path);
+      }
+      return next;
+    });
+  };
+
+  const maxCleanableBytes = cleanableItems.reduce((total, item) => total + item.size_bytes, 0);
+  const selectedCleanableBytes = cleanableItems
+    .filter((item) => selectedCleanablePaths.has(item.path))
+    .reduce((total, item) => total + item.size_bytes, 0);
+
+  const handleDeleteSelectedCleanableItems = async () => {
+    if (!repositoryToClean || !onDeleteCleanableItems || selectedCleanablePaths.size === 0) return;
+
+    setIsDeletingCleanableItems(true);
+    setDeletingRepositoryPaths((current) => new Set(current).add(repositoryToClean.path));
+    try {
+      const result = await onDeleteCleanableItems(repositoryToClean.path, [...selectedCleanablePaths]);
+      toast.success(`Freed ${formatFileSize(result.deleted_size_bytes)} from ${repositoryToClean.name}`, {
+        description: `${result.deleted_paths.length} item${result.deleted_paths.length === 1 ? '' : 's'} deleted`,
+      });
+      setCleanupDialogOpen(false);
+      setRepositoryToClean(null);
+      setCleanableItems([]);
+      setSelectedCleanablePaths(new Set());
+    } catch (error) {
+      toast.error(`Failed to clean generated files: ${error}`);
+    } finally {
+      setIsDeletingCleanableItems(false);
+      setDeletingRepositoryPaths((current) => {
+        const next = new Set(current);
+        next.delete(repositoryToClean.path);
+        return next;
+      });
+    }
   };
 
   if (isLoading) {
@@ -129,22 +210,30 @@ export const RepositoryList: React.FC<RepositoryListProps> = ({
     );
   }
 
-  // Separate pinned and unpinned repositories
+  // Keep pinned projects first, but only mount one small page at a time.
   const pinnedRepositories = repositories.filter(repo => repo.is_pinned);
   const unpinnedRepositories = repositories.filter(repo => !repo.is_pinned);
+  const orderedRepositories = [...pinnedRepositories, ...unpinnedRepositories];
+  const totalPages = Math.max(1, Math.ceil(orderedRepositories.length / repositoriesPerPage));
+  const safeCurrentPage = Math.min(currentPage, totalPages);
+  const paginatedRepositories = orderedRepositories.slice(
+    (safeCurrentPage - 1) * repositoriesPerPage,
+    safeCurrentPage * repositoriesPerPage,
+  );
+  const paginatedPinnedRepositories = paginatedRepositories.filter(repo => repo.is_pinned);
+  const paginatedUnpinnedRepositories = paginatedRepositories.filter(repo => !repo.is_pinned);
 
   const renderRepository = (repo: GitRepository) => {
-    const topFileTypes = getTopFileTypes(repo.file_types);
     const isDeleting = deletingRepositoryPaths.has(repo.path);
     
     return (
-      <li key={repo.path} className="border-b last:border-b-0 hover:shadow-sm transition-shadow bg-white/80 hover:bg-white relative">
-        {/* Loading overlay when deleting node_modules */}
+      <li key={repo.path} className="border-b last:border-b-0 hover:shadow-sm transition-shadow bg-background/80 hover:bg-background relative">
+        {/* Loading overlay while generated items are being deleted */}
         {isDeleting && (
-          <div className="absolute inset-0 bg-white/80 backdrop-blur-sm flex items-center justify-center z-10 rounded">
-            <div className="flex items-center gap-2 bg-white px-3 py-2 rounded-lg shadow-md border">
+          <div className="absolute inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center z-10 rounded">
+            <div className="flex items-center gap-2 bg-background px-3 py-2 rounded-lg shadow-md border">
               <RefreshCw className="h-4 w-4 animate-spin text-blue-500" />
-              <span className="text-sm font-medium text-gray-700">Deleting node_modules...</span>
+              <span className="text-sm font-medium">Cleaning generated files...</span>
             </div>
           </div>
         )}
@@ -210,7 +299,7 @@ export const RepositoryList: React.FC<RepositoryListProps> = ({
                     <HardDrive className="h-3 w-3" />
                 <span className='text-sky-700'>{formatSize(repo.size_mb)}</span>
                 </div>
-                {topFileTypes && <span>{topFileTypes}</span>}
+                <LanguageIcons fileTypes={repo.file_types} />
               </div>
               
               {/* Collection badges */}
@@ -229,8 +318,8 @@ export const RepositoryList: React.FC<RepositoryListProps> = ({
                 <CollectionBadges repositoryPath={repo.path} refreshTrigger={collectionRefreshTrigger} />
               </div> */}
 
-                  {/* Delete Node Modules Button - Only show if repository has node_modules */}
-                {repo.node_modules_info && repo.node_modules_info.count > 0 && onDeleteNodeModules && (
+                  {/* Cleanup Button - Only shown for repositories with known reproducible artifacts */}
+                {repo.cleanable_info && repo.cleanable_info.total_size_bytes > 0 && onDeleteCleanableItems && (
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <Button
@@ -241,20 +330,19 @@ export const RepositoryList: React.FC<RepositoryListProps> = ({
                         onClick={(e) => {
                           e.stopPropagation();
                           if (!isDeleting) {
-                            handleDeleteNodeModules(repo);
+                            handleOpenCleanupDialog(repo);
                           }
                         }}
                       >
                         {isDeleting ? (
                           <RefreshCw className="h-3 w-3 animate-spin" />
                         ) : (
-                          // <div className='flex px-1 gap-1 items-center justify-center'><Trash2 className="h-3 w-3" /> <span className='text-sm'>node_modules</span></div>
-                          <div className='flex px-1 gap-1 items-center justify-center'><span className='text-sm font-medium'>Free up {formatSize(repo.node_modules_info.total_size_mb)}</span></div>
+                          <div className='flex px-1 gap-1 items-center justify-center'><span className='text-sm font-medium'>Free up {formatFileSize(repo.cleanable_info.total_size_bytes)}</span></div>
                         )}
                       </Button>
                     </TooltipTrigger>
                     <TooltipContent>
-                      <p>{isDeleting ? 'Deleting...' : `Delete node_modules (${formatSize(repo.node_modules_info.total_size_mb)})`}</p>
+                      <p>{isDeleting ? 'Cleaning...' : `Review ${repo.cleanable_info.item_count} cleanable item${repo.cleanable_info.item_count === 1 ? '' : 's'} (${formatFileSize(repo.cleanable_info.total_size_bytes)})`}</p>
                     </TooltipContent>
                   </Tooltip>
                 )}
@@ -264,7 +352,7 @@ export const RepositoryList: React.FC<RepositoryListProps> = ({
                     <Button
                       size="sm"
                       variant="outline"
-                      className="h-8 w-8 p-0 opacity-0 group-hover:opacity-100 transition-opacity text-black"
+                      className="h-8 w-8 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
                       onClick={(e) => {
                         e.stopPropagation();
                         setSelectedRepository(repo);
@@ -284,7 +372,7 @@ export const RepositoryList: React.FC<RepositoryListProps> = ({
                     <Button
                       size="sm"
                       variant="outline"
-                      className="h-8 w-8 p-0 opacity-0 group-hover:opacity-100 transition-opacity text-black"
+                      className="h-8 w-8 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
                       onClick={(e) => {
                         e.stopPropagation();
                         onOpenInVSCode(repo.path);
@@ -308,7 +396,7 @@ export const RepositoryList: React.FC<RepositoryListProps> = ({
                       <Button
                         size="sm"
                         variant="outline"
-                        className="h-8 w-8 p-0 opacity-0 group-hover:opacity-100 transition-opacity text-black"
+                        className="h-8 w-8 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
                         onClick={(e) => {
                           e.stopPropagation();
                           onOpenInFileManager(repo.path);
@@ -365,24 +453,24 @@ export const RepositoryList: React.FC<RepositoryListProps> = ({
     <>
       <div className="space-y-4 ">
         {/* Pinned Repositories Section */}
-        {pinnedRepositories.length > 0 && (
-          <div className="bg-amber-50 inset-shadow-sm inset-shadow-amber-200 pb-2">
-            <div className="bg-amber-50 px-4 py-2 inset-shadow-sm inset-shadow-amber-300/50">
+        {paginatedPinnedRepositories.length > 0 && (
+          <div className="bg-amber-50 dark:bg-amber-950/35 inset-shadow-sm inset-shadow-amber-200 dark:inset-shadow-amber-400/20 pb-2">
+            <div className="bg-amber-50 dark:bg-amber-950/35 px-4 py-2 inset-shadow-sm inset-shadow-amber-300/50 dark:inset-shadow-amber-400/25">
               <div className="flex items-center gap-2 ">
-                <Pin className="h-4 w-4 text-amber-600" fill="currentColor" />
-                <h2 className="text-sm font-medium text-amber-800">
+                <Pin className="h-4 w-4 text-amber-600 dark:text-amber-300" fill="currentColor" />
+                <h2 className="text-sm font-medium text-amber-800 dark:text-amber-100">
                   Pinned Repositories ({pinnedRepositories.length})
                 </h2>
               </div>
             </div>
             <ul className='mx-2 border-1 rounded-xl bg-transparent shadow-sm overflow-hidden'>
-              {pinnedRepositories.map(renderRepository)}
+              {paginatedPinnedRepositories.map(renderRepository)}
             </ul>
           </div>
         )}
         
         {/* Regular Repositories Section */}
-        {unpinnedRepositories.length > 0 && (
+        {paginatedUnpinnedRepositories.length > 0 && (
           <div className="bg-muted/50 inset-shadow-sm inset-shadow-gray-300 pb-2">
 
               <div className="bg-muted/50 px-4 py-2 inset-shadow-sm inset-shadow-gray-300">
@@ -392,8 +480,39 @@ export const RepositoryList: React.FC<RepositoryListProps> = ({
               </div>
 
             <ul className='mx-2 border-1 rounded-xl bg-transparent shadow-sm overflow-hidden'>
-              {unpinnedRepositories.map(renderRepository)}
+              {paginatedUnpinnedRepositories.map(renderRepository)}
             </ul>
+          </div>
+        )}
+
+        {totalPages > 1 && (
+          <div className="flex flex-wrap items-center justify-between gap-3 border rounded-lg bg-card px-3 py-2 text-sm">
+            <span className="text-muted-foreground">
+              Showing {(safeCurrentPage - 1) * repositoriesPerPage + 1}–{Math.min(safeCurrentPage * repositoriesPerPage, orderedRepositories.length)} of {orderedRepositories.length}
+            </span>
+            <div className="flex items-center gap-1">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={safeCurrentPage === 1}
+                onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
+              >
+                <ChevronLeft className="h-4 w-4" />
+                Previous
+              </Button>
+              <span className="px-2 text-muted-foreground">Page {safeCurrentPage} of {totalPages}</span>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={safeCurrentPage === totalPages}
+                onClick={() => setCurrentPage((page) => Math.min(totalPages, page + 1))}
+              >
+                Next
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
           </div>
         )}
       </div>
@@ -416,53 +535,90 @@ export const RepositoryList: React.FC<RepositoryListProps> = ({
         />
       )}
 
-      {/* Delete node_modules Confirmation Dialog */}
-      {repositoryToDeleteNodeModules && (
-        <AlertDialog open={deleteNodeModulesDialogOpen} onOpenChange={setDeleteNodeModulesDialogOpen}>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Delete node_modules?</AlertDialogTitle>
-              <AlertDialogDescription>
-                This will permanently delete the <code>node_modules</code> folder(s) in "{repositoryToDeleteNodeModules.name}". 
-                {repositoryToDeleteNodeModules.node_modules_info && (
-                  <span> This will free up {formatSize(repositoryToDeleteNodeModules.node_modules_info.total_size_mb)} of space.</span>
-                )}
-                <br /><br />
-                This action cannot be undone, but you can reinstall dependencies by running <code>npm install</code> or <code>yarn install</code>.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel disabled={isDeletingNodeModules}>Cancel</AlertDialogCancel>
-              <AlertDialogAction 
-                onClick={async () => {
-                  if (repositoryToDeleteNodeModules && onDeleteNodeModules) {
-                    setIsDeletingNodeModules(true);
-                    setDeletingRepositoryPaths(prev => new Set(prev).add(repositoryToDeleteNodeModules.path));
-                    try {
-                      await onDeleteNodeModules(repositoryToDeleteNodeModules.path);
-                      toast.success(`node_modules deleted successfully from ${repositoryToDeleteNodeModules.name}`);
-                    } catch (error) {
-                      toast.error(`Failed to delete node_modules: ${error}`);
-                    } finally {
-                      setIsDeletingNodeModules(false);
-                      setDeletingRepositoryPaths(prev => {
-                        const newSet = new Set(prev);
-                        newSet.delete(repositoryToDeleteNodeModules.path);
-                        return newSet;
-                      });
-                      setDeleteNodeModulesDialogOpen(false);
-                      setRepositoryToDeleteNodeModules(null);
-                    }
-                  }
-                }}
-                disabled={isDeletingNodeModules}
-                className="bg-red-600 hover:bg-red-700"
+      {/* Selectable generated-files cleanup dialog */}
+      {repositoryToClean && (
+        <Dialog open={cleanupDialogOpen} onOpenChange={handleCleanupDialogOpenChange}>
+          <DialogContent className="max-w-2xl" showCloseButton={!isDeletingCleanableItems}>
+            <DialogHeader>
+              <DialogTitle>Clean generated files</DialogTitle>
+              <DialogDescription>
+                Select reproducible dependencies, build outputs, and caches to permanently remove from "{repositoryToClean.name}". Source files, Git metadata, lockfiles, and tool configuration are not included.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="grid grid-cols-2 gap-3 rounded-lg border bg-muted/40 p-3 text-sm">
+              <div>
+                <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Max deletable</div>
+                <div className="mt-1 font-semibold">{formatFileSize(maxCleanableBytes)}</div>
+              </div>
+              <div>
+                <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Selected</div>
+                <div className="mt-1 font-semibold text-red-600">{formatFileSize(selectedCleanableBytes)}</div>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between gap-3">
+              <div className="text-sm font-medium">Cleanable items ({cleanableItems.length})</div>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                disabled={isLoadingCleanableItems || isDeletingCleanableItems || cleanableItems.length === 0}
+                onClick={() => setSelectedCleanablePaths(new Set(
+                  selectedCleanablePaths.size === cleanableItems.length ? [] : cleanableItems.map((item) => item.path),
+                ))}
               >
-                {isDeletingNodeModules ? "Deleting..." : "Yes, delete"}
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
+                {selectedCleanablePaths.size === cleanableItems.length ? 'Clear all' : 'Select all'}
+              </Button>
+            </div>
+
+            <div className="max-h-80 overflow-y-auto rounded-lg border">
+              {isLoadingCleanableItems ? (
+                <div className="flex items-center justify-center gap-2 p-8 text-sm text-muted-foreground">
+                  <RefreshCw className="h-4 w-4 animate-spin" /> Inspecting generated files…
+                </div>
+              ) : cleanableItems.length === 0 ? (
+                <div className="p-8 text-center text-sm text-muted-foreground">No cleanable items were found. The repository may have changed since it was last scanned.</div>
+              ) : (
+                <div className="divide-y">
+                  {cleanableItems.map((item) => (
+                    <label key={item.path} className="flex cursor-pointer items-center gap-3 p-3 hover:bg-muted/50">
+                      <Checkbox
+                        checked={selectedCleanablePaths.has(item.path)}
+                        disabled={isDeletingCleanableItems}
+                        onCheckedChange={(checked) => toggleCleanableItem(item.path, checked === true)}
+                      />
+                      <div className="min-w-0 flex-1">
+                        <div className="truncate font-mono text-sm">{item.relative_path}</div>
+                        <div className="mt-0.5 text-xs text-muted-foreground">{item.category} · {item.is_directory ? 'Folder' : 'File'}</div>
+                      </div>
+                      <div className="shrink-0 text-sm font-medium">{formatFileSize(item.size_bytes)}</div>
+                    </label>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                disabled={isDeletingCleanableItems}
+                onClick={() => handleCleanupDialogOpenChange(false)}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                variant="destructive"
+                disabled={isLoadingCleanableItems || isDeletingCleanableItems || selectedCleanablePaths.size === 0}
+                onClick={handleDeleteSelectedCleanableItems}
+              >
+                {isDeletingCleanableItems ? 'Cleaning…' : `Delete selected (${formatFileSize(selectedCleanableBytes)})`}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       )}
     </>
   );

@@ -40,7 +40,8 @@ export const RepositoryPage: React.FC = () => {
 
         // Load directory listing
         const listing = await invoke<DirectoryListing>('list_directory_contents', {
-          repoPath: repoPath
+          repoPath,
+          rootPath: repoPath,
         });
         setDirectoryListing(listing);
       } catch (err) {
@@ -63,7 +64,8 @@ export const RepositoryPage: React.FC = () => {
       
       // Reload directory listing
       const listing = await invoke<DirectoryListing>('list_directory_contents', {
-        repoPath: path
+        repoPath: path,
+        rootPath: path,
       });
       setDirectoryListing(listing);
     } catch (err) {
@@ -87,7 +89,7 @@ export const RepositoryPage: React.FC = () => {
 
   if (isLoading) {
     return (
-      <div className="h-full grow flex flex-col font-mono">
+      <div className="h-full grow flex flex-col font-sans">
         {/* Header */}
         <header className="border-b">
           <div className="flex h-12 items-center justify-between">
@@ -142,7 +144,7 @@ export const RepositoryPage: React.FC = () => {
 
   if (error) {
     return (
-      <div className="h-full grow flex flex-col font-mono">
+      <div className="h-full grow flex flex-col font-sans">
         {/* Header */}
         <header className="border-b fixed top-0 left-0 right-0 z-10 bg-transparent backdrop-blur-md">
           <div className="flex h-12 items-center justify-between">
@@ -217,7 +219,7 @@ export const RepositoryPage: React.FC = () => {
 
   if (!repository) {
     return (
-      <div className="h-full grow flex flex-col font-mono">
+      <div className="h-full grow flex flex-col font-sans">
         {/* Header */}
         <header className="border-b">
           <div className="flex h-12 items-center justify-between">
@@ -252,7 +254,7 @@ export const RepositoryPage: React.FC = () => {
   }
 
   return (
-    <div className="h-full grow flex flex-col font-mono">
+    <div className="h-full grow flex flex-col font-sans">
       {/* Navigation */}
       <Navigation repositoryCount={0} />
 

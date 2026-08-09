@@ -20,7 +20,8 @@ export const useReadmeContent = (repositoryPath: string) => {
             // For now, we'll need to add a Tauri command to read file content
             // This is a placeholder - you might need to implement read_file_content in Rust
             const content = await invoke<string>('read_file_content', {
-              filePath: `${repositoryPath}/${filename}`
+              filePath: `${repositoryPath}/${filename}`,
+              rootPath: repositoryPath,
             });
             
             if (content) {

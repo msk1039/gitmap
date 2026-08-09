@@ -156,7 +156,7 @@ export const CollectionsSidebar: React.FC<CollectionsSidebarProps> = ({
 
           {/* Custom collections */}
           {collections.map((collection) => (
-            <div key={collection.id} className={`group flex items-center justify-between space-x-2 my-2 rounded-lg hover:bg-white transition-colors border-1 shadow-lime-600/30 ${selectedCollection === collection.id ? 'bg-background shadow-md ' : ''} `}>
+            <div key={collection.id} className={`group flex items-center justify-between space-x-2 my-2 rounded-lg hover:bg-white dark:hover:bg-muted transition-colors border-1 shadow-lime-600/30 ${selectedCollection === collection.id ? 'bg-background shadow-md ' : ''} `}>
               <div className="flex items-center space-x-2 flex-1 min-w-0 h-10 px-2">
                 <input
                   type="checkbox"
@@ -223,7 +223,7 @@ export const CollectionsSidebar: React.FC<CollectionsSidebarProps> = ({
           <Button 
         variant="outline" 
         size="sm" 
-        className="w-full gap-2 h-10 rounded-lg bg-gradient-to-r from-emerald-50 to-teal-50 border-emerald-200/50 hover:from-emerald-100 hover:to-teal-100 hover:border-emerald-300/60 transition-all duration-200 text-emerald-700 hover:text-emerald-800 shadow-sm hover:shadow-md mt-2 text-xs md:text-sm"
+        className="mt-2 h-10 w-full box-border gap-2 rounded-lg border-emerald-200/50 bg-gradient-to-r from-emerald-50 to-teal-50 text-xs text-emerald-700 shadow-sm transition-[background-color,border-color,color,box-shadow] duration-200 hover:border-emerald-300/60 hover:from-emerald-100 hover:to-teal-100 hover:text-emerald-800 hover:shadow-sm dark:border-emerald-700/50 dark:from-emerald-950/70 dark:to-teal-950/70 dark:text-emerald-200 dark:hover:border-emerald-600/60 dark:hover:from-emerald-900/70 dark:hover:to-teal-900/70 dark:hover:text-emerald-100 md:text-sm"
           >
         <Plus className="h-4 w-4" />
         <span className="hidden sm:inline">New Collection</span>
@@ -241,7 +241,7 @@ export const CollectionsSidebar: React.FC<CollectionsSidebarProps> = ({
           </DialogHeader>
           <div className="grid gap-6 py-4">
         <div className="space-y-4">
-          <label htmlFor="name" className="text-lg font-medium text-gray-700">
+          <label htmlFor="name" className="text-lg font-medium text-gray-700 dark:text-foreground">
             Collection Name
           </label>
           <Input
@@ -259,11 +259,11 @@ export const CollectionsSidebar: React.FC<CollectionsSidebarProps> = ({
         </div>
         
         <div className="space-y-4">
-          <label className="text-lg font-medium text-gray-700">
+          <label className="text-lg font-medium text-gray-700 dark:text-foreground">
             Choose Color Theme
           </label>
           <div className="space-y-3">
-            <div className="grid grid-cols-5 gap-3 p-4 bg-white rounded-lg border border-gray-100 shadow-sm">
+            <div className="grid grid-cols-5 gap-3 p-4 bg-white dark:bg-card rounded-lg border border-gray-100 shadow-sm">
           {colorOptions.map((color) => (
             <button
               key={color.value}

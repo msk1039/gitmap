@@ -1,8 +1,9 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Button } from "@/components/ui/button";
+import { useTheme } from 'next-themes';
 
-import { Home, Settings, GitBranchIcon } from "lucide-react";
+import { Home, Settings, GitBranchIcon, Moon, Sun } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface NavigationProps {
@@ -11,6 +12,7 @@ interface NavigationProps {
 
 export const Navigation: React.FC<NavigationProps> = () => {
   const location = useLocation();
+  const { resolvedTheme, setTheme } = useTheme();
   
   const isActive = (path: string) => {
     if (path === '/') {
@@ -69,11 +71,19 @@ export const Navigation: React.FC<NavigationProps> = () => {
           </span>
         </div> */}
 
-        {/* Right side space */}
+        {/* Theme toggle */}
         <div className="flex items-center w-32 border-l h-12 justify-center">
-          <span className="text-xs text-muted-foreground">
-            {isActive('/') ? 'Home' : isActive('/settings') ? 'Settings' : 'Repository'}
-          </span>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8"
+            aria-label={resolvedTheme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+            title={resolvedTheme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+            onClick={() => setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')}
+          >
+            {resolvedTheme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+          </Button>
         </div>
       </div>
     </header>

@@ -31,26 +31,15 @@ export const useRepositoryManager = () => {
   }, []);
 
   // Enhanced loadCachedRepositories with caching
-  const loadCachedRepositories = useCallback(async () => {
+  const loadCachedRepositories = useCallback(async (): Promise<GitRepository[]> => {
     try {
-      console.log('Loading cached repositories...'); // Debug log
       const cachedRepos = await invoke<GitRepository[]>('load_cached_repositories');
-      console.log('Loaded repositories:', cachedRepos.length, 'repos'); // Debug log
-      console.log('Pinned repos count:', cachedRepos.filter(r => r.is_pinned).length); // Debug log
-      
-      // Debug: Log all pinned repositories
-      const pinnedRepos = cachedRepos.filter(r => r.is_pinned);
-      console.log('All pinned repositories:', pinnedRepos.map(r => ({ 
-        name: r.name, 
-        path: r.path, 
-        is_pinned: r.is_pinned, 
-        pinned_at: r.pinned_at 
-      })));
-      
       setRepositories(cachedRepos);
+      return cachedRepos;
     } catch (err) {
       console.warn('Failed to load cached repositories:', err);
       // Don't set error state here, as this is optional
+      return [];
     }
   }, []);
 
@@ -223,15 +212,13 @@ export const useRepositoryManager = () => {
   // Pin-related methods
   const togglePin = useCallback(async (repoPath: string) => {
     try {
-      console.log('Toggling pin for repository:', repoPath); // Debug log
-      const updatedRepo = await invoke<GitRepository>('toggle_repository_pin', { repoPath });
-      console.log('Pin toggled successfully. New state:', updatedRepo.is_pinned); // Debug log
+      await invoke<GitRepository>('toggle_repository_pin', { repoPath });
       
       // Instead of updating local state, reload all repositories to get proper order
       await loadCachedRepositories();
       await loadCacheInfo();
     } catch (err) {
-      console.error('Failed to toggle pin:', err); // Debug log
+      console.error('Failed to toggle pin:', err);
       setError(err as string);
       throw err;
     }
@@ -292,7 +279,6 @@ export const useRepositoryManager = () => {
   // Listen for window focus to reload repositories when returning to the app
   useEffect(() => {
     const handleFocus = () => {
-      console.log('Window focused, reloading repositories...'); // Debug log
       loadCachedRepositories();
     };
 

@@ -3,7 +3,7 @@
 
 
 :root {
-  font-family: Inter, Avenir, Helvetica, Arial, sans-serif;
+  font-family: "Inter Variable", Inter, ui-sans-serif, system-ui, sans-serif;
   font-size: 16px;
   line-height: 24px;
   font-weight: 400;
@@ -14,6 +14,7 @@
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   -webkit-text-size-adjust: 100%;
+  font-feature-settings: "cv02", "cv03", "cv04", "cv11", "ss01";
 }
 
 * {
@@ -145,14 +146,15 @@ button {
   --sidebar-accent-foreground: oklch(0.205 0 0);
   --sidebar-border: oklch(0.922 0 0);
   --sidebar-ring: oklch(0.708 0 0);
+  --font-sans: "Inter Variable", Inter, ui-sans-serif, system-ui, sans-serif;
 }
  
 .dark {
-  --background: oklch(0.145 0 0);
+  --background: oklch(0.205 0 0);
   --foreground: oklch(0.985 0 0);
-  --card: oklch(0.145 0 0);
+  --card: oklch(0.235 0 0);
   --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.145 0 0);
+  --popover: oklch(0.235 0 0);
   --popover-foreground: oklch(0.985 0 0);
   --primary: oklch(0.985 0 0);
   --primary-foreground: oklch(0.205 0 0);
@@ -228,23 +230,40 @@ button {
   body {
     @apply bg-background text-foreground;
   }
+
+  button:not(:disabled),
+  a[href],
+  label[for],
+  input[type="checkbox"]:not(:disabled),
+  input[type="radio"]:not(:disabled),
+  select:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]),
+  [role="menuitem"],
+  [role="option"],
+  [role="tab"] {
+    cursor: pointer;
+  }
+
+  button:disabled {
+    cursor: not-allowed;
+  }
 }
 
 /* Toast styling for better visibility */
 [data-sonner-toast] {
-  background: white !important;
-  color: #0f0f0f !important;
-  border: 1px solid #e5e7eb !important;
+  background: var(--popover) !important;
+  color: var(--popover-foreground) !important;
+  border: 1px solid var(--border) !important;
   box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05) !important;
 }
 
 [data-sonner-toast] [data-title] {
-  color: #0f0f0f !important;
+  color: var(--popover-foreground) !important;
   font-weight: 500 !important;
 }
 
 [data-sonner-toast] [data-description] {
-  color: #6b7280 !important;
+  color: var(--muted-foreground) !important;
   font-size: 0.875rem !important;
 }
 

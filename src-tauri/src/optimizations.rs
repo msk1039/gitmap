@@ -234,7 +234,8 @@ mod tests {
             is_valid: true,
             is_pinned: false,
             pinned_at: None,
-            node_modules_info: None,
+            cleanable_info: None,
+            cleanup_scan_version: 1,
         }
     }
 

@@ -1,7 +1,7 @@
 # gitmap - Local Git Repository Manager
-A smart tool to discover, organize, and clean your local Git projects.
+A desktop app to discover, organize, browse, and clean local Git projects.
 
-No more manually digging through folders or trying to remember where you cloned that one project last month. GitMap helps you stay organized and keeps your workspace clean by also letting you delete unused node_modules with a single click.
+No more manually digging through folders or trying to remember where you cloned that one project last month. gitmap organizes local repositories, previews their contents, and helps you reclaim space from reproducible build outputs.
 
 
 <!-- https://github.com/user-attachments/assets/32746ca4-4295-482f-9bf6-875130fe4a64 -->
@@ -15,10 +15,13 @@ https://github.com/user-attachments/assets/98e7dcab-b82b-4838-b449-3d9ad6a4ed55
 
 ## Features
 
-- ### Auto-discovers all Git repositories on your system
-- ### Pin frequently used repositories for quick access
-- ### Group related projects into custom collections
-- ### Delete unused node_modules from non-active projects to free up disk space
+- Auto-discovers Git repositories in configured scan locations
+- Paginates large repository lists and supports pinned repositories and custom collections
+- Shows workspace storage and cleanable-space statistics
+- Safely reviews and deletes known reproducible artifacts, including `node_modules`, Rust `target`, `.next`, `.nuxt`, Python environments, and common build caches
+- Browses repository files with GitHub-style breadcrumbs, folders, and line-numbered text previews
+- Uses language icons for detected technologies
+- Supports light and dark themes, with the choice persisted locally
 
 ## Setup & Installation
 
@@ -79,6 +82,17 @@ pnpm tauri build
 # Or with npm
 npm run tauri build
 ```
+
+### Reclaiming build-disk space
+
+Rust stores compiled dependencies, debug symbols, incremental compilation data, and app bundles in `src-tauri/target/`. This directory is generated and ignored by Git. To remove it safely when you are not building the app:
+
+```bash
+cd src-tauri
+cargo clean
+```
+
+The next Rust or Tauri build will recompile dependencies.
 <!-- 
 #### Cross-Platform Builds
 
@@ -121,8 +135,8 @@ pnpm tauri build --target x86_64-unknown-linux-gnu
 - **Frontend**: React + TypeScript + Vite
 - **Backend**: Rust + Tauri
 - **UI**: Tailwind CSS + shadcn/ui
-- **Icons**: Lucide React
+- **Icons**: Lucide React + React Icons
+- **Font**: Inter
 - **Build Tool**: Vite
 - **Package Manager**: pnpm
-
 

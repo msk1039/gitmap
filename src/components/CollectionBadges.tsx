@@ -62,7 +62,7 @@ export const CollectionBadges: React.FC<CollectionBadgesProps> = ({
         <Badge 
           key={collection.id} 
           variant="secondary" 
-          className="text-xs text-gray-700 border-sm" 
+          className="text-xs text-gray-700 dark:text-slate-900 border-sm"
           style={{ backgroundColor: collection.color }}
         >
           {collection.name}

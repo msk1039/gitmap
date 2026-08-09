@@ -72,7 +72,7 @@ export const SettingsPage: React.FC = () => {
   };
 
   return (
-    <div className="h-full grow flex flex-col font-mono">
+    <div className="h-full grow flex flex-col font-sans">
       {/* Navigation */}
       <Navigation repositoryCount={cacheInfo?.total_repositories || 0} />
 
@@ -97,10 +97,10 @@ export const SettingsPage: React.FC = () => {
             </div> */}
 
             {/* Cache Information Card */}
-            <div className='border bg-[#f8f8f7] pb-2'>
+            <div className='border bg-[#f8f8f7] dark:bg-[#20271f] pb-2'>
 
-         <div className="bg-transparent px-4 py-2 inset-shadow-sm inset-shadow-gray-300">
-                <h2 className="text-xl font-medium text-muted-foreground flex gap-2 items-center">
+         <div className="bg-transparent px-4 py-2 inset-shadow-sm inset-shadow-gray-300 dark:inset-shadow-lime-400/15">
+                <h2 className="text-xl font-medium text-muted-foreground dark:text-lime-100 flex gap-2 items-center">
                    {/* <Trash2 className="h-5 w-5" /> */}
                  Cache Information
                 </h2>
@@ -153,8 +153,8 @@ export const SettingsPage: React.FC = () => {
                     <p className="text-sm text-muted-foreground">
                       Path to the JSON file where repository data is stored
                     </p>
-                    <div className="bg-slate-50 border rounded-md p-3">
-                      <p className="text-xs font-mono break-all text-slate-700">
+                    <div className="bg-slate-50 border rounded-md p-3 dark:bg-muted/50">
+                      <p className="text-xs font-mono break-all text-slate-700 dark:text-foreground">
                         {cacheFilePath || "Loading cache file path..."}
                       </p>
                     </div>
@@ -179,10 +179,10 @@ export const SettingsPage: React.FC = () => {
 
 
             {/* Data Management Card */}
-            <div className='border bg-amber-50 pb-2 mt-10'>
+            <div className='border bg-amber-50 dark:bg-amber-950/35 pb-2 mt-10'>
 
-            <div className="bg-transparent px-4 py-2 inset-shadow-sm inset-shadow-gray-300">
-                <h2 className="text-xl font-medium text-muted-foreground flex gap-2 items-center">
+            <div className="bg-transparent px-4 py-2 inset-shadow-sm inset-shadow-gray-300 dark:inset-shadow-amber-400/20">
+                <h2 className="text-xl font-medium text-muted-foreground dark:text-amber-100 flex gap-2 items-center">
                    {/* <Trash2 className="h-5 w-5" /> */}
                  Data Management
                 </h2>
@@ -205,9 +205,9 @@ export const SettingsPage: React.FC = () => {
                     scan paths, and repository metadata. You'll need to rescan your repositories after clearing the cache.
                   </p>
                   
-                  <div className="flex items-center gap-2 p-3 bg-amber-50 border border-amber-200 rounded-md">
-                    <AlertTriangle className="h-4 w-4 text-amber-600" />
-                    <p className="text-sm text-amber-800">
+                  <div className="flex items-center gap-2 p-3 bg-amber-50 dark:bg-amber-950/55 border border-amber-200 dark:border-amber-900 rounded-md">
+                    <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-300" />
+                    <p className="text-sm text-amber-800 dark:text-amber-100">
                       This action cannot be undone. All your pinned repositories and custom scan paths will be lost.
                     </p>
                   </div>

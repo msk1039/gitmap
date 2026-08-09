@@ -1,12 +1,13 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useRepositoryManager } from '../hooks/useRepositoryManager';
-import { GitRepository } from '../types/repository';
+import { CleanupDeletionResult, GitRepository } from '../types/repository';
 import { RepositoryList } from '../components/RepositoryList';
 import { ScanProgress, RepositoriesDiscoveredInfo, AnalysisInProgress } from '../components/ScanProgress';
 import { ScanDirectoryManager } from '../components/ScanDirectoryManager';
 import { Navigation } from '../components/Navigation';
 import { CollectionsSidebar } from '../components/CollectionsSidebar';
+import { WorkspaceStats } from '../components/WorkspaceStats';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -44,34 +45,34 @@ export const HomePage: React.FC = () => {
     analysisProgress,
   } = useRepositoryManager();
 
-  const handleDeleteNodeModules = async (repoPath: string) => {
+  const handleDeleteCleanableItems = async (repoPath: string, selectedPaths: string[]) => {
     try {
-      await invoke('delete_node_modules', { repoPath });
-      // Refresh the specific repository to update node_modules info
-      await refreshRepository(repoPath);
+      return await invoke<CleanupDeletionResult>('delete_cleanable_items', { repoPath, selectedPaths });
     } catch (error) {
       throw error; // Re-throw so the component can handle it
+    } finally {
+      // Refresh the aggregate cleanable size after a successful or partial cleanup attempt.
+      await refreshRepository(repoPath);
     }
   };
 
   // Refresh repositories when component mounts
   useEffect(() => {
-    console.log('HomePage mounted, loading repositories...'); // Debug log
     const loadInitialData = async () => {
       setIsInitialLoading(true);
       try {
-        await loadCachedRepositories();
+        const cachedRepositories = await loadCachedRepositories();
+        if (cachedRepositories.some((repository) => repository.cleanup_scan_version < 1)) {
+          await refreshCache();
+        }
       } finally {
         setIsInitialLoading(false);
       }
     };
     loadInitialData();
-  }, [loadCachedRepositories]);
+  }, [loadCachedRepositories, refreshCache]);
 
   const filteredAndSortedRepositories = useMemo(() => {
-    const startTime = performance.now();
-    console.log('🔄 Filtering and sorting repositories. Total:', repositories.length); // Debug log
-    
     // First filter by collection
     let collectionFiltered = repositories;
     if (selectedCollection !== 'all') {
@@ -83,19 +84,10 @@ export const HomePage: React.FC = () => {
     // Use optimized filtering and sorting
     const result = smartFilter(collectionFiltered, searchQuery, sortBy);
     
-    console.log('After optimized filtering:', result.length, 'repositories'); // Debug log
-    console.log('Final pinned repos in result:', result.filter(r => r.is_pinned).map(r => r.name)); // Debug log
-    
-    const endTime = performance.now();
-    console.log(`🔄 Optimized filtering and sorting took: ${(endTime - startTime).toFixed(2)}ms`);
-    
     return result;
   }, [repositories, sortBy, searchQuery, selectedCollection, collectionRepositories, smartFilter]);
 
   const handleCollectionChange = async (collectionId: string) => {
-    console.log(`🕐 Starting collection change to: ${collectionId}`);
-    const startTime = performance.now();
-    
     // Set loading state immediately
     setIsLoadingCollection(true);
     setSelectedCollection(collectionId);
@@ -103,13 +95,9 @@ export const HomePage: React.FC = () => {
     // If it's not "all", load the repositories in this collection
     if (collectionId !== 'all') {
       try {
-        const backendStart = performance.now();
         const collectionRepos = await invoke<GitRepository[]>('get_repositories_in_collection', {
           collectionId
         });
-        const backendEnd = performance.now();
-        console.log(`🕐 Backend call took: ${(backendEnd - backendStart).toFixed(2)}ms`);
-        
         setCollectionRepositories(collectionRepos);
       } catch (error) {
         console.error('Failed to load collection repositories:', error);
@@ -124,8 +112,6 @@ export const HomePage: React.FC = () => {
       setIsLoadingCollection(false);
     }, 100);
     
-    const endTime = performance.now();
-    console.log(`🕐 Total collection change took: ${(endTime - startTime).toFixed(2)}ms`);
   };
 
   const handleCollectionAssignmentChange = () => {
@@ -152,7 +138,7 @@ export const HomePage: React.FC = () => {
   };
 
   return (
-    <div className="h-full grow flex flex-col font-mono">
+    <div className="h-full grow flex flex-col font-sans">
       {/* Navigation */}
       <Navigation repositoryCount={repositories.length} />
 
@@ -165,7 +151,7 @@ export const HomePage: React.FC = () => {
 
             <div className='col-span-1 w-full md:h-screen border-r flex flex-col items-center md:sticky top-0 bg-background pt-16'>
               {/* collections list sidebar */}
-              <div className='flex flex-col items-center justify-center mt-4 md:mt-40 border-t border-b p-4 w-full bg-[#f7faf6] inset-shadow-sm inset-shadow-lime-600/50'>
+              <div className='collections-panel flex flex-col items-center justify-center mt-4 md:mt-40 border-t border-b p-4 w-full bg-[#f7faf6] dark:bg-[#1b2518] inset-shadow-sm inset-shadow-lime-600/50 dark:inset-shadow-lime-400/20'>
                 <div className='flex flex-col items-center justify-center px-4 mb-2'>
 
               <h2 className='text-base md:text-lg font-semibold'>Collections</h2>
@@ -182,6 +168,9 @@ export const HomePage: React.FC = () => {
               />
 
 
+              </div>
+              <div className="w-full">
+                <WorkspaceStats repositories={repositories} />
               </div>
             </div>
             {/* Title and Controls Section */}
@@ -329,7 +318,7 @@ export const HomePage: React.FC = () => {
                 collectionRefreshTrigger={collectionsRefreshTrigger}
                 isLoading={(isScanning && !scanProgress) || isLoadingCollection || isInitialLoading || analysisProgress !== null}
                 isInitialLoad={isInitialLoading}
-                onDeleteNodeModules={handleDeleteNodeModules}
+                onDeleteCleanableItems={handleDeleteCleanableItems}
               />
             </div></div>
       <div className='col-span-1 hidden lg:block w-full border-l h-full flex flex-col'>

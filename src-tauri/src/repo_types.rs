@@ -17,12 +17,25 @@ pub struct AnalysisProgress {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
-pub struct NodeModulesInfo {
-    pub total_size_mb: f64,
-    pub count: u32,
-    pub paths: Vec<String>,
+pub struct CleanableItem {
+    pub path: String,
+    pub relative_path: String,
+    pub category: String,
+    pub is_directory: bool,
+    pub size_bytes: u64,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct CleanableInfo {
+    pub total_size_bytes: u64,
+    pub item_count: u32,
     pub last_scanned: DateTime<Utc>,
-    pub package_json_modified: DateTime<Utc>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct CleanupDeletionResult {
+    pub deleted_paths: Vec<String>,
+    pub deleted_size_bytes: u64,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -41,7 +54,9 @@ pub struct GitRepository {
     pub is_valid: bool, // Whether the repository still exists and is accessible
     pub is_pinned: bool, // Whether the repository is pinned
     pub pinned_at: Option<DateTime<Utc>>, // When it was pinned
-    pub node_modules_info: Option<NodeModulesInfo>,
+    pub cleanable_info: Option<CleanableInfo>,
+    #[serde(default)]
+    pub cleanup_scan_version: u8,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
